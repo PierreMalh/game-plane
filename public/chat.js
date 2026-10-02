@@ -180,10 +180,16 @@ window.GPChat = (() => {
         setTyper(msg.channel, msg.id, msg.from);
         if (msg.channel === active) renderTyping();
         return true;
-      case 'channel':
-        ensureChannel(msg.channel.id, msg.channel.label, msg.channel.kind);
+      case 'channel': {
+        const ch = ensureChannel(msg.channel.id, msg.channel.label, msg.channel.kind);
+        if (msg.history) {
+          ch.msgs = msg.history;
+          ch.unread = isOpen && ch.id === active ? 0 : msg.history.filter((m) => m.id !== myId).length;
+          if (ch.unread === 0) markSeen(ch);
+        }
         render();
         return true;
+      }
       case 'channel-removed':
         channels.delete(msg.id);
         if (active === msg.id) active = 'general';
@@ -210,6 +216,13 @@ window.GPChat = (() => {
     open();
     switchTo('dm:' + playerId);
     $('chat-input').focus();
+  }
+
+  // Ouvre le volet directement sur un canal (ex. le chat de la table).
+  function openChannel(id) {
+    if (!channels.has(id)) return;
+    open();
+    switchTo(id);
   }
 
   function submit(text) {
@@ -258,7 +271,7 @@ window.GPChat = (() => {
   }
 
   return {
-    init, snapshot, onMessage, openDm, open, close,
+    init, snapshot, onMessage, openDm, openChannel, open, close,
     setIdentity(id) { myId = id; },
     setPlayers(list) {
       names.clear();

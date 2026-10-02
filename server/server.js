@@ -9,6 +9,7 @@ const path = require('path');
 const crypto = require('crypto');
 const { acceptUpgrade } = require('./ws');
 const { createChat } = require('./chat');
+const { createTables } = require('./tables');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const MIME = {
@@ -29,6 +30,7 @@ function createApp({ offlineTtlMs = OFFLINE_TTL_MS, heartbeatMs = HEARTBEAT_MS }
   // id → { id, name, conn|null, lastSeen }
   const players = new Map();
   const chat = createChat({ players });
+  const tables = createTables({ players, chat, broadcast: (m) => broadcast(m) });
 
   const publicPlayers = () =>
     [...players.values()].map((p) => ({ id: p.id, name: p.name, online: !!p.conn }));
@@ -63,8 +65,13 @@ function createApp({ offlineTtlMs = OFFLINE_TTL_MS, heartbeatMs = HEARTBEAT_MS }
     player.conn = conn;
     player.lastSeen = Date.now();
     state.player = player;
-    conn.send(JSON.stringify({ type: 'welcome', id: player.id, players: publicPlayers(), chat: chat.snapshot(player.id) }));
+    conn.send(JSON.stringify({ type: 'welcome', id: player.id, players: publicPlayers(), chat: chat.snapshot(player.id), tables: tables.list(), table: tables.viewFor(player.id) }));
     broadcastPlayers();
+  }
+
+  // Les échecs d'action (coup refusé, table pleine…) sont signalés au seul émetteur.
+  function reply(conn, res) {
+    if (!res.ok) conn.send(JSON.stringify({ type: 'game-error', error: res.error }));
   }
 
   function onMessage(conn, state, raw) {
@@ -80,6 +87,16 @@ function createApp({ offlineTtlMs = OFFLINE_TTL_MS, heartbeatMs = HEARTBEAT_MS }
       if (!res.ok && res.reason === 'rate') conn.send(JSON.stringify({ type: 'chat-error', reason: 'rate' }));
     } else if (msg.type === 'typing') {
       chat.typing(state.player.id, msg.channel);
+    } else if (msg.type === 'table-create') {
+      reply(conn, tables.create(state.player.id, msg.game));
+    } else if (msg.type === 'table-join') {
+      reply(conn, tables.join(state.player.id, msg.table));
+    } else if (msg.type === 'table-leave') {
+      tables.leave(state.player.id);
+    } else if (msg.type === 'table-rematch') {
+      tables.rematch(state.player.id);
+    } else if (msg.type === 'game-action') {
+      reply(conn, tables.action(state.player.id, msg.action));
     }
   }
 
@@ -114,13 +131,13 @@ function createApp({ offlineTtlMs = OFFLINE_TTL_MS, heartbeatMs = HEARTBEAT_MS }
     const now = Date.now();
     let removed = false;
     for (const [id, p] of players) {
-      if (!p.conn && now - p.lastSeen > offlineTtlMs) { chat.forget(id); players.delete(id); removed = true; }
+      if (!p.conn && now - p.lastSeen > offlineTtlMs) { tables.playerGone(id); chat.forget(id); players.delete(id); removed = true; }
     }
     if (removed) broadcastPlayers();
   }, Math.min(offlineTtlMs, 30000));
   sweeper.unref();
 
-  return { attach, players, chat, stop() { clearInterval(heartbeat); clearInterval(sweeper); } };
+  return { attach, players, chat, tables, stop() { clearInterval(heartbeat); clearInterval(sweeper); } };
 }
 
 // Chemin d'une requête, ou null si l'URL est malformée (ne doit jamais faire planter le serveur).

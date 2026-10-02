@@ -50,8 +50,20 @@
   #chat-quick { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0; }
   #chat-quick button { background: #0b1220; color: var(--txt); padding: 6px 12px; font-weight: 400; white-space: nowrap; }
   #chat-form { display: flex; gap: 8px; margin-top: 4px; }
+  h2 { font-size: .95rem; margin: 0 0 8px; color: var(--dim); font-weight: 600; }
+  .game-card, #tables li { display: flex; justify-content: space-between; align-items: center; gap: 12px;
+                           background: #0b1220; border-radius: 10px; padding: 10px 12px; }
+  #tables { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  button.sec { background: #334155; color: var(--txt); }
+  #lobby, #game-view { padding-bottom: 90px; }
+  #gv-title { color: var(--txt); font-size: 1.1rem; margin: 0; }
+  #gv-status { text-align: center; font-weight: 600; margin: 8px 0 12px; min-height: 1.4em; }
+  #gv-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 16px; }
+  #toast { position: fixed; top: calc(12px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 40;
+           background: var(--ko); color: #fff; padding: 8px 16px; border-radius: 999px; font-size: .9rem; }
   [hidden] { display: none !important; }
 </style>
+<link rel="stylesheet" href="games/connect4.css">
 </head>
 <body>
 <header>
@@ -71,7 +83,28 @@
     <ul id="players"></ul>
     <p class="hint">Touche un joueur pour lui écrire en privé.</p>
   </section>
+  <section>
+    <h2>Jeux</h2>
+    <div id="game-list" style="display:flex;flex-direction:column;gap:8px"></div>
+  </section>
+  <section id="open-tables" hidden>
+    <h2>Parties ouvertes</h2>
+    <ul id="tables"></ul>
+  </section>
 </div>
+
+<div id="game-view" hidden>
+  <h2 id="gv-title"></h2>
+  <p id="gv-status"></p>
+  <div id="gv-body"></div>
+  <div id="gv-actions">
+    <button id="gv-chat" type="button" class="sec">💬 Chat de la table</button>
+    <button id="gv-rematch" type="button" hidden>Rejouer</button>
+    <button id="gv-leave" type="button" class="sec">Quitter</button>
+  </div>
+</div>
+
+<div id="toast" hidden></div>
 
 <button id="chat-toggle" type="button" aria-label="Ouvrir le chat" hidden>💬<span id="chat-badge" hidden>0</span></button>
 <aside id="chat-panel" hidden>
@@ -89,6 +122,8 @@
 </aside>
 
 <script src="chat.js"></script>
+<script src="games.js"></script>
+<script src="games/connect4.js"></script>
 <script src="client.js"></script>
 </body>
 </html>

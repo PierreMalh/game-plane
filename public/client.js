@@ -75,10 +75,12 @@
         GPChat.snapshot(msg.chat);
         if (!joined) { joined = true; showLobby(); }
         renderPlayers(msg.players);
+        GPGames.setTables(msg.tables);
+        GPGames.setTable(msg.table); // reprise d'une partie en cours après reconnexion
       } else if (msg.type === 'players') {
         GPChat.setPlayers(msg.players);
         renderPlayers(msg.players);
-      } else {
+      } else if (!GPGames.onMessage(msg)) {
         GPChat.onMessage(msg);
       }
     };
@@ -106,6 +108,7 @@
   });
 
   GPChat.init({ send: sendJson });
+  GPGames.init({ send: sendJson });
   if (myName) $('name').value = myName;
   connect();
 })();
