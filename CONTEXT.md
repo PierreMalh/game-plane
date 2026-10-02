@@ -16,7 +16,7 @@ stores.
 Salon unique avec liste des joueurs en direct et **chat à canaux** (général,
 privés, salons de jeu) dans un volet global repliable. Jeux : **Puissance 4**, **Échecs**, **Business Class** (façon Monopoly, 2 à 6 joueurs),
 **Cherche l'imposteur** (façon Undercover, 3 à 8 joueurs),
-jeux de cartes : **Président** (3–6), **8 américain** (2–6), **Menteur** (3–8), **Belote** (4, 2 équipes).
+jeux de cartes : **Président** (3–6), **8 américain** (2–6), **Menteur** (3–8), **Belote** et **Belote contrée** (4, 2 équipes).
 
 ## Chat (important pour les jeux : on ne pourra pas parler dans l'avion)
 - `server/chat.js` : canaux `general`, `dm:<idJoueur>` (privé) et salons créés
@@ -72,3 +72,7 @@ son hotspot Wi-Fi. Voir `README.md`.
   `public/cards.js` (`GPCards` : carte, dos, main sur plusieurs lignes avec sélection) et
   `public/cards.css`, partagés ; un fichier `public/games/<jeu>.js` par jeu. Les mains
   sont **privées** : `view(état, idx)` ne renvoie que la main de `idx`.
+- **Belote** : un seul moteur `server/games/cards/belote-engine.js` (`createGame(mode)`) pour la belote
+  classique (`belote.js`, 501, prise à la retournée) et la **contrée** (`coinche.js`, 1000, enchères
+  chiffrées, contre/surcontre). Annonces (tierce, cinquante, cent, carrés) communes aux deux modes.
+  Le client `public/games/belote.js` enregistre les deux jeux.

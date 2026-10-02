@@ -9,8 +9,8 @@ ouvrent une adresse dans leur navigateur. Rien à installer pour eux.
 > 📶 **Pas de Bluetooth** : un navigateur ne peut pas communiquer en Bluetooth avec un autre
 > téléphone. Tout passe par le **Wi-Fi local** du téléphone de l'hôte, qui marche très bien sans internet.
 
-**8 jeux** : Puissance 4 · Échecs · Business Class (façon Monopoly) · Cherche l'imposteur ·
-Président · 8 américain · Menteur · Belote — avec un **chat intégré** (indispensable quand on ne peut pas parler).
+**9 jeux** : Puissance 4 · Échecs · Business Class (façon Monopoly) · Cherche l'imposteur ·
+Président · 8 américain · Menteur · Belote · Belote contrée — avec un **chat intégré** (indispensable quand on ne peut pas parler).
 
 ## Sommaire
 
@@ -129,7 +129,7 @@ voir [Problèmes fréquents](#6-problèmes-fréquents).
 
 1. Un joueur touche **Créer** à côté du jeu choisi : une table s'ouvre.
 2. Les autres la voient dans **Parties ouvertes** et touchent **Rejoindre**.
-3. **Jeux à effectif fixe** (Puissance 4 et Échecs à 2, Belote à 4) : la partie démarre toute seule
+3. **Jeux à effectif fixe** (Puissance 4 et Échecs à 2, Belote et Belote contrée à 4) : la partie démarre toute seule
    dès que la table est pleine.
    **Autres jeux** : le créateur de la table (« l'hôte de la table ») voit un bouton
    **Démarrer (N joueurs)** et lance la partie quand tout le monde est là.
@@ -140,8 +140,8 @@ voir [Problèmes fréquents](#6-problèmes-fréquents).
 - Le titre indique **à qui c'est de jouer** ; votre téléphone **vibre** quand c'est à vous
   (sur Android ; l'iPhone ne vibre pas).
 - **💬 Chat de la table** : une conversation réservée aux joueurs de la table.
-- **Abandonner / Quitter** : à 2 joueurs, abandonner donne la victoire à l'adversaire (à la belote,
-  c'est l'équipe adverse qui gagne, car on ne peut pas jouer à 3).
+- **Abandonner / Quitter** : à 2 joueurs, abandonner donne la victoire à l'adversaire (à la belote et à la
+  belote contrée, c'est l'équipe adverse qui gagne, car on ne peut pas jouer à 3).
   Dans les jeux à plusieurs, vous êtes simplement retiré de la partie qui continue sans vous.
 - **Rejouer** : en fin de partie, quand tous les joueurs restants le demandent, une nouvelle
   manche démarre (les couleurs / le premier joueur changent).
@@ -176,6 +176,7 @@ conversation sont conservés ; on peut envoyer au plus 8 messages toutes les 5 s
 | [8 américain](#8-américain) | 2 à 6 | par l'hôte de la table |
 | [Menteur](#menteur) | 3 à 8 | par l'hôte de la table |
 | [Belote](#belote) | 4 (2 équipes) | automatique |
+| [Belote contrée](#belote-contrée) | 4 (2 équipes) | automatique |
 
 > Aucun jeu n'a de chronomètre : prenez votre temps, ou pressez gentiment vos amis via le chat 😉.
 
@@ -330,7 +331,61 @@ hors atout : As, 10, Roi, Dame, Valet, 9, 8, 7. Une donne vaut **162 points** (1
   **chute** : elle marque 0 et les adversaires 162.
 - **Capot** : une équipe qui fait **les 8 plis** marque **252**.
 
-Ce qui n'est **pas** (encore) géré : les annonces de suites (tierce, cinquante, cent, carrés) et la contrée.
+**4. Les annonces** (déclarées **automatiquement** à votre première carte jouée) :
+
+| Annonce | Points |
+|---|---|
+| **Tierce** : 3 cartes qui se suivent dans une couleur | 20 |
+| **Cinquante** : 4 cartes qui se suivent | 50 |
+| **Cent** : 5 cartes qui se suivent ou plus | 100 |
+| **Carré** de valets / de 9 | 200 / 150 |
+| **Carré** d'as, de 10, de rois ou de dames | 100 |
+
+La suite va de 7, 8, 9, 10, Valet, Dame, Roi à l'As. Un carré de 8 ou de 7 ne compte pas.
+- À la déclaration, les autres joueurs voient seulement le **type** (« annonce : tierce ») sur votre siège.
+- Après le **premier pli**, la **meilleure annonce de chaque équipe** est comparée : **carré > cent >
+  cinquante > tierce**, puis la plus haute carte ; à égalité parfaite, l'**atout** l'emporte, sinon
+  le **premier joueur à avoir joué**.
+- L'équipe gagnante **marque toutes ses annonces** (celles de ses deux joueurs), dont les cartes sont
+  alors **révélées** à tous ; l'autre équipe ne marque aucune annonce.
+- Si l'équipe qui marque les annonces est celle du **preneur qui chute**, elles sont **perdues**.
+
+Les enchères chiffrées (contrats, contre, surcontre) existent dans la variante [Belote contrée](#belote-contrée).
+
+### Belote contrée
+
+La **belote coinchée**, en **2 équipes de 2** et **en 1000 points**. Mêmes équipes, même table, même
+jeu de la carte (fournir, couper, monter, partenaire maître), mêmes points de cartes, mêmes
+**annonces** et même belote-rebelote que la [Belote](#belote) : seuls changent les **enchères** et le **barème**.
+
+**1. Les enchères.** Chacun reçoit **8 cartes** d'emblée (pas de carte retournée). À son tour on peut :
+- **Annoncer** un **contrat** et une **couleur d'atout** : **80, 90 … 160** points, ou **Capot**
+  (faire tous les plis). Chaque annonce doit être **strictement plus haute** que la précédente.
+  On peut ré-enchérir même après avoir passé.
+- **Passer.** Les enchères s'arrêtent après **3 passes** qui suivent une annonce : le dernier qui a
+  annoncé devient le **preneur**. Si personne n'annonce, nouvelle donne.
+- **Contre !** : un joueur de l'**équipe adverse** du dernier annonceur peut **contrer** à son tour
+  (les points sont **doublés**). Le preneur peut alors **surcontrer** (×4) ou laisser jouer à ×2.
+
+**2. Le jeu** se déroule comme à la belote classique, avec l'atout choisi par le preneur.
+
+**3. Le barème** (par donne). Les points « réalisés » sont les points de cartes + 10 de der + la belote.
+- **Contrat rempli** (l'équipe preneuse réalise au moins la valeur du contrat) : les preneurs
+  marquent **la valeur du contrat + leurs points réalisés** ; les défenseurs marquent leurs points.
+- **Contrat chuté** : les défenseurs marquent **160 + la valeur du contrat** ; les preneurs 0.
+- **Contrat « Capot »** : il faut faire les 8 plis (sinon il chute). Réussi : 250 + 252.
+- **Capot non annoncé** : l'équipe qui fait les 8 plis compte 252 points réalisés (+90 de bonus pour les
+  défenseurs si les preneurs chutent).
+- **Contré / surcontré** : tout ou rien. Le camp qui gagne marque **(160 + valeur du contrat) × 2**
+  (× 4 si surcontré), l'autre 0.
+- **Belote-rebelote** : +20, jamais multipliés, **acquis même en cas de chute**.
+- **Annonces** : ajoutées au score de l'équipe qui les marque, **sans multiplication** ; perdues si c'est
+  le preneur qui chute.
+
+La partie s'arrête quand une équipe atteint **1000 points** (la plus haute gagne ; égalité parfaite : on rejoue).
+
+Ce qui n'est **pas** géré : la « générale » (un seul joueur fait tous les plis), le « sans atout » et le
+« tout atout ».
 
 ---
 
@@ -394,7 +449,7 @@ branchez l'hôte si possible.
   WebSocket écrit à la main, client en JavaScript pur. Seule bibliothèque tierce :
   `chess.js`, copiée dans `server/vendor/`.
 - **Lancer sur un ordinateur** : `npm start`, puis ouvrir l'adresse affichée (ou `http://localhost:8080`).
-- **Tests** : `npm test` (près de 200 tests : règles de chaque jeu, secret des mains,
+- **Tests** : `npm test` (plus de 200 tests : règles de chaque jeu, secret des mains,
   centaines de parties aléatoires, WebSocket).
 - **Ajouter un jeu** : un fichier moteur dans `server/games/` (logique pure), un fichier
   d'affichage dans `public/games/`, et l'enregistrer dans `server/games/index.js` et

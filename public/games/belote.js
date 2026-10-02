@@ -1,24 +1,33 @@
 'use strict';
-// Rendu de la belote. Aucune règle ici : le serveur envoie ta main, le pli, les scores et
-// `hints` (actions possibles, cartes légales, couleurs prenables). La table est dessinée
+// Rendu de la belote classique ET de la belote contrée (même table, enchères différentes).
+// Aucune règle ici : le serveur envoie ta main, le pli, les scores, les enchères et `hints`
+// (actions possibles, cartes légales, couleurs / valeurs d'enchères). La table est dessinée
 // vue de dessus : toi en bas, ton partenaire en face. On joue dans le sens inverse des
 // aiguilles d'une montre (le joueur suivant est à ta droite), comme en France.
 
 (() => {
   const { el, color, nm } = GPCards.ui;
-  const { SYM, SUIT_NAME } = GPCards;
+  const { SYM, SUIT_NAME, rankOf } = GPCards;
 
-  let sel = null;
+  let sel = null;          // carte levée
+  let bidValue = null;     // contrée : valeur choisie
+  let bidSuit = null;      // contrée : couleur choisie
   let current = null;
 
   const ERRORS = {
     'illegal-card': 'Carte interdite : il faut fournir, couper ou monter à l’atout.',
     'bad-suit': 'Choisis une autre couleur que la carte retournée.',
     'not-in-hand': 'Tu n’as pas cette carte.',
+    'bad-bid': 'Annonce invalide.',
+    'bid-too-low': 'Il faut annoncer plus haut que le contrat actuel.',
+    'cannot-contre': 'Tu ne peux pas contrer ce contrat.',
   };
+  const KIND = { tierce: 'tierce', cinquante: 'cinquante', cent: 'cent', carre: 'carré' };
 
   const suitText = (s) => `${SYM[s]} ${SUIT_NAME[s]}`;
   const redSuit = (s) => s === 'H' || s === 'D';
+  const valueText = (v) => (v === 250 ? 'Capot' : String(v));
+  const contreText = (c) => (c === 2 ? ' · surcontré ×4' : c === 1 ? ' · contré ×2' : '');
 
   function button(label, onClick, cls, disabled) {
     const b = el('button', cls, label);
@@ -34,15 +43,17 @@
 
   function seatBox(table, s, seat) {
     const me = table.me;
-    const box = el('div', `bl-seat ${posOf(me, seat)}` + (s.turn === seat && s.phase !== 'roundover' && s.phase !== 'over' ? ' turn' : ''));
-    const team = seat % 2 === me % 2 ? 'ours' : 'theirs';
-    box.classList.add(team);
+    const live = s.phase !== 'roundover' && s.phase !== 'over';
+    const box = el('div', `bl-seat ${posOf(me, seat)}` + (s.turn === seat && live ? ' turn' : ''));
+    box.classList.add(seat % 2 === me % 2 ? 'ours' : 'theirs');
     const dot = el('i');
     dot.style.background = color(seat);
     box.append(dot, el('b', null, nm(table, seat) + (seat === me ? ' (toi)' : '')));
     const chips = el('div', 'chips');
     if (s.dealer === seat) chips.append(el('span', 'chip', 'donneur'));
     if (s.taker === seat) chips.append(el('span', 'chip now', `preneur ${s.trump ? SYM[s.trump] : ''}`));
+    else if (s.bid && s.bid.p === seat && s.phase !== 'play') chips.append(el('span', 'chip now', `${valueText(s.bid.value)} ${SYM[s.bid.suit]}`));
+    for (const kind of s.declared[seat] ?? []) chips.append(el('span', 'chip ok', `annonce : ${KIND[kind]}`));
     if (seat !== me && s.phase === 'play') chips.append(el('span', 'chip', `${s.counts[seat]} 🂠`));
     box.append(chips);
     return box;
@@ -57,6 +68,13 @@
     if (s.phase === 'bid1' || s.phase === 'bid2') {
       centre.append(el('div', 'hint', 'Carte retournée'), GPCards.face(s.turned));
       centre.append(el('div', 'hint', s.phase === 'bid1' ? `Tour 1 : prendre à ${SYM[s.turned.slice(-1)]}` : 'Tour 2 : une autre couleur'));
+    } else if (s.phase === 'bid' || s.phase === 'surcontre') {
+      if (s.bid) {
+        const sym = el('span', 'cp-big', SYM[s.bid.suit]);
+        if (redSuit(s.bid.suit)) sym.style.color = '#fecaca';
+        centre.append(el('div', 'hint', 'Contrat'), el('div', 'cp-big', valueText(s.bid.value)), sym);
+        centre.append(el('div', 'hint', `par ${nm(table, s.bid.p)}${contreText(s.contre)}`));
+      } else centre.append(el('div', 'hint', 'Aucune annonce'));
     } else if (s.phase === 'play') {
       const slots = el('div', 'bl-slots');
       for (const t of s.trick) {
@@ -88,9 +106,58 @@
       const sym = el('span', 'cp-big', SYM[s.trump]);
       if (redSuit(s.trump)) sym.style.color = '#dc2626';
       trump.append(el('div', 'hint', 'Atout'), sym);
+      if (s.bid) trump.append(el('div', 'hint', `${valueText(s.bid.value)}${contreText(s.contre)}`));
     } else trump.append(el('div', 'hint', `Donne ${s.round}`));
     bar.append(trump);
     return bar;
+  }
+
+  // ------------------------------------------------------------------ enchères
+
+  function bidPanel(ctx, table, s, box, btns, info) {
+    const { send } = ctx;
+    const h = s.hints;
+
+    if (s.mode !== 'coinche') { // belote classique : prendre ou passer
+      if (h.actions.length) {
+        info(s.phase === 'bid1' ? `À toi : prends-tu à ${suitText(s.turned.slice(-1))} ?` : 'À toi : prends dans une autre couleur, ou passe.');
+        if (s.phase === 'bid1') btns.append(button(`Je prends à ${SYM[s.turned.slice(-1)]}`, () => send({ type: 'take' })));
+        else for (const su of h.suits) btns.append(button(`Prendre ${SYM[su]}`, () => send({ type: 'take', suit: su }), 'sec'));
+        btns.append(button('Passer', () => send({ type: 'pass' }), 'sec'));
+      } else info(`Au tour de ${nm(table, s.turn)} de parler…`);
+      return;
+    }
+
+    // belote contrée : contrat chiffré + couleur d'atout, contre, surcontre
+    if (s.bid) info(`Contrat actuel : ${valueText(s.bid.value)} ${SYM[s.bid.suit]} par ${nm(table, s.bid.p)}${contreText(s.contre)}`);
+    else info('Aucune annonce pour l’instant.');
+
+    if (s.phase === 'surcontre') {
+      if (h.actions.includes('surcontre')) {
+        info('Tes adversaires t’ont CONTRÉ. Surcontres-tu (×4) ?');
+        btns.append(button('Surcontre ! ×4', () => send({ type: 'surcontre' }), 'danger'), button('Non, on joue (×2)', () => send({ type: 'pass' }), 'sec'));
+      } else info(`${nm(table, s.turn)} décide de surcontrer…`);
+      return;
+    }
+    if (!h.actions.length) { info(`Au tour de ${nm(table, s.turn)} d'annoncer…`); return; }
+
+    if (!h.bid.values.includes(bidValue)) bidValue = null; // ce contrat n'est plus possible
+    const vals = el('div', 'bl-vals');
+    for (const v of [80, 90, 100, 110, 120, 130, 140, 150, 160, 250]) {
+      const ok = h.bid.values.includes(v);
+      vals.append(button(valueText(v), () => { bidValue = v; rerender(); }, 'mini' + (bidValue === v ? '' : ' sec'), !ok));
+    }
+    const suits = el('div', 'bl-vals');
+    for (const su of h.bid.suits) {
+      const b = button(SYM[su], () => { bidSuit = su; rerender(); }, 'mini' + (bidSuit === su ? '' : ' sec'));
+      if (redSuit(su)) b.style.color = bidSuit === su ? '#7f1d1d' : '#fca5a5';
+      b.setAttribute('aria-label', SUIT_NAME[su]);
+      suits.append(b);
+    }
+    box.append(vals, suits);
+    btns.append(button(bidValue && bidSuit ? `Annoncer ${valueText(bidValue)} ${SYM[bidSuit]}` : 'Choisis un contrat et une couleur', () => { send({ type: 'bid', value: bidValue, suit: bidSuit }); bidValue = null; bidSuit = null; }, '', !(bidValue && bidSuit)));
+    if (h.actions.includes('contre')) btns.append(button('Contre !', () => send({ type: 'contre' }), 'danger'));
+    btns.append(button('Passer', () => send({ type: 'pass' }), 'sec'));
   }
 
   function drawActions(ctx, table, s) {
@@ -100,14 +167,8 @@
     const info = (t) => box.append(el('div', 'cp-info', t));
     const btns = el('div', 'cp-btns');
 
-    if (s.phase === 'bid1' || s.phase === 'bid2') {
-      if (h.actions.length) {
-        info(s.phase === 'bid1' ? `À toi : prends-tu à ${suitText(s.turned.slice(-1))} ?` : 'À toi : prends dans une autre couleur, ou passe.');
-        if (s.phase === 'bid1') btns.append(button(`Je prends à ${SYM[s.turned.slice(-1)]}`, () => send({ type: 'take' })));
-        else for (const su of h.suits) btns.append(button(`Prendre ${SYM[su]}`, () => send({ type: 'take', suit: su }), 'sec'));
-        btns.append(button('Passer', () => send({ type: 'pass' }), 'sec'));
-      } else info(`Au tour de ${nm(table, s.turn)} de parler…`);
-    } else if (s.phase === 'play') {
+    if (['bid1', 'bid2', 'bid', 'surcontre'].includes(s.phase)) bidPanel(ctx, table, s, box, btns, info);
+    else if (s.phase === 'play') {
       if (h.actions.length) {
         info('À toi de jouer.');
         btns.append(button(sel ? 'Jouer la carte' : 'Choisis une carte', () => { send({ type: 'play', card: sel }); sel = null; }, '', !sel));
@@ -124,6 +185,28 @@
     return box;
   }
 
+  // ------------------------------------------------------------------ annonces et décompte
+
+  function comboText(c) {
+    const cards = c.cards.map((x) => rankOf(x)).join(' ');
+    return c.kind === 'carre' ? `carré de ${c.rank}` : `${KIND[c.kind]} ${SYM[c.suit]} (${cards})`;
+  }
+
+  function drawAnnounce(table, s) {
+    const a = s.announce;
+    if (!a || s.phase === 'over') return null;
+    const me = table.me % 2;
+    const box = el('div', 'cp-box');
+    box.append(el('div', 'cp-info', `Annonces : ${a.team === me ? 'Nous' : 'Eux'} marquent ${a.points} points`));
+    for (const c of a.combos) {
+      const row = el('div', 'hint');
+      row.textContent = `${nm(table, c.p)} : ${comboText(c)} (+${c.points})`;
+      box.append(row);
+    }
+    if (s.taker !== null && a.team === s.taker % 2) box.append(el('div', 'hint', 'Perdues si le contrat chute.'));
+    return box;
+  }
+
   function drawResult(table, s) {
     const r = s.result;
     if (!r) return null;
@@ -132,9 +215,12 @@
     const box = el('div', 'cp-box');
     box.append(el('div', 'cp-info', `Fin de la donne ${s.round}`));
     const lines = [];
-    lines.push(`Preneur : ${lab(r.takerTeam)} — ${r.capot !== null ? 'CAPOT ! ' : ''}${r.made ? 'contrat rempli' : 'contrat chuté'}`);
+    if (r.bid) lines.push(`Contrat : ${valueText(r.bid.value)} ${SYM[r.bid.suit]} (${lab(r.takerTeam)})${contreText(r.contre)} — ${r.made ? 'rempli' : 'chuté'}`);
+    else lines.push(`Preneur : ${lab(r.takerTeam)} — ${r.capot !== null ? 'CAPOT ! ' : ''}${r.made ? 'contrat rempli' : 'contrat chuté'}`);
     if (r.capot === null) lines.push(`Points de cartes (+10 de der) : Nous ${r.cardPts[me]} · Eux ${r.cardPts[1 - me]}`);
+    else lines.push(`CAPOT pour ${lab(r.capot)} (252)`);
     if (r.belote !== null) lines.push(`Belote-rebelote : ${lab(r.belote)} (+20)`);
+    if (r.announce) lines.push(r.announce.counted ? `Annonces : ${lab(r.announce.team)} +${r.announce.counted}` : `Annonces de ${lab(r.announce.team)} perdues (preneur chuté)`);
     lines.push(`Marqué : Nous +${r.add[me]} · Eux +${r.add[1 - me]}`);
     lines.push(`Total : Nous ${s.scores[me]} · Eux ${s.scores[1 - me]}`);
     for (const l of lines) box.append(el('div', 'hint', l));
@@ -156,13 +242,11 @@
     const s = table.state;
     const h = s.hints;
     if (sel && !h.legal.includes(sel)) sel = null;
+    if (s.phase !== 'bid') { bidValue = null; bidSuit = null; }
     const root = el('div', 'cp-root');
 
     root.append(drawScores(table, s), drawTable(table, s), drawActions(ctx, table, s));
-    const res = drawResult(table, s);
-    if (res) root.append(res);
-    const last = drawLastTrick(table, s);
-    if (last) root.append(last);
+    for (const part of [drawAnnounce(table, s), drawResult(table, s), drawLastTrick(table, s)]) if (part) root.append(part);
 
     if (s.hand.length && s.phase !== 'over') {
       const mine = el('div', 'cp-box');
@@ -195,24 +279,30 @@
     build(current.container, current.ctx);
   }
 
-  GPGames.register({
-    id: 'belote',
-    name: 'Belote',
-    blurb: '4 joueurs · 2 équipes (1er+3e / 2e+4e) · en 501',
-    errors: ERRORS,
-    leaveWarning: 'Quitter la partie ? Ton équipe la perdra (on ne peut pas jouer à 3).',
-    isMyTurn: (table) => table.state.hints.actions.length > 0,
-    status(table) {
-      const s = table.state;
-      const mine = table.me % 2;
-      if (s.phase === 'over') return s.winnerTeam === mine ? 'Votre équipe gagne ! 🎉' : 'L’équipe adverse gagne';
-      if (s.phase === 'roundover') return `Donne ${s.round} terminée`;
-      if (s.phase === 'bid1' || s.phase === 'bid2') return s.turn === table.me ? 'À toi de parler' : `Enchères · ${nm(table, s.turn)} parle`;
-      return s.turn === table.me ? 'À toi de jouer' : `Au tour de ${nm(table, s.turn)}`;
-    },
-    render(container, ctx) {
-      current = { container, ctx };
-      build(container, ctx);
-    },
-  });
+  function register(id, name, blurb) {
+    GPGames.register({
+      id,
+      name,
+      blurb,
+      errors: ERRORS,
+      leaveWarning: 'Quitter la partie ? Ton équipe la perdra (on ne peut pas jouer à 3).',
+      isMyTurn: (table) => table.state.hints.actions.length > 0,
+      status(table) {
+        const s = table.state;
+        const mine = table.me % 2;
+        if (s.phase === 'over') return s.winnerTeam === mine ? 'Votre équipe gagne ! 🎉' : 'L’équipe adverse gagne';
+        if (s.phase === 'roundover') return `Donne ${s.round} terminée`;
+        if (s.phase === 'surcontre') return s.turn === table.me ? 'Surcontres-tu ?' : `${nm(table, s.turn)} décide de surcontrer`;
+        if (['bid1', 'bid2', 'bid'].includes(s.phase)) return s.turn === table.me ? 'À toi de parler' : `Enchères · ${nm(table, s.turn)} parle`;
+        return s.turn === table.me ? 'À toi de jouer' : `Au tour de ${nm(table, s.turn)}`;
+      },
+      render(container, ctx) {
+        current = { container, ctx };
+        build(container, ctx);
+      },
+    });
+  }
+
+  register('belote', 'Belote', '4 joueurs · 2 équipes (1er+3e / 2e+4e) · prise, annonces · en 501');
+  register('coinche', 'Belote contrée', '4 joueurs · 2 équipes · contrats, contre, surcontre, annonces · en 1000');
 })();

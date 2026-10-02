@@ -23,3 +23,5 @@
 .bl-slot.left { left: 0; top: 50%; transform: translateY(-50%); }
 .bl-slot.right { right: 0; top: 50%; transform: translateY(-50%); }
 .bl-seat.left, .bl-seat.right { max-width: 27%; font-size: .78rem; }
+.bl-vals { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 8px; }
+.bl-vals button { min-width: 44px; }
