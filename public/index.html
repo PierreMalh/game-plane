@@ -24,11 +24,32 @@
   #players li { background: #0b1220; border-radius: 999px; padding: 4px 12px; font-size: .9rem; }
   #players li.off { color: var(--dim); }
   #players li.me { outline: 1px solid var(--acc); }
-  #chat { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-  #log { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
-  #log p { margin: 0; word-break: break-word; }
-  #log b { color: var(--acc); }
-  #send { display: flex; gap: 8px; margin-top: 8px; }
+  #players li.tap { cursor: pointer; }
+  .hint { color: var(--dim); font-size: .8rem; margin: 8px 0 0; }
+
+  /* Volet de chat global (lobby et jeux) */
+  #chat-toggle { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 20;
+                 width: 56px; height: 56px; border-radius: 50%; font-size: 1.5rem; padding: 0; box-shadow: 0 4px 12px #0008; }
+  #chat-badge { position: absolute; top: -4px; right: -4px; background: var(--ko); color: #fff; font-size: .75rem;
+                min-width: 20px; height: 20px; line-height: 20px; border-radius: 10px; padding: 0 5px; }
+  #chat-panel { position: fixed; left: 0; right: 0; bottom: 0; height: 60dvh; z-index: 30; background: var(--card);
+                border-radius: 16px 16px 0 0; box-shadow: 0 -4px 16px #0009; display: flex; flex-direction: column;
+                padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); }
+  #chat-head { display: flex; align-items: center; gap: 8px; }
+  #chat-tabs { flex: 1; display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; }
+  .tab { white-space: nowrap; background: #0b1220; color: var(--txt); padding: 6px 12px; border-radius: 999px; font-weight: 400; }
+  .tab.on { background: var(--acc); color: #04263a; font-weight: 600; }
+  .tab .n { background: var(--ko); color: #fff; border-radius: 10px; margin-left: 6px; padding: 0 6px; font-size: .75rem; }
+  #chat-close { background: transparent; color: var(--dim); padding: 6px 10px; font-size: 1.2rem; }
+  #chat-log { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 4px 0; }
+  #chat-log p { margin: 0; word-break: break-word; }
+  #chat-log b { color: var(--acc); }
+  #chat-log p.me b { color: var(--ok); }
+  #chat-log p.sys { color: var(--dim); font-style: italic; }
+  #chat-typing { height: 1.2em; font-size: .8rem; color: var(--dim); }
+  #chat-quick { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0; }
+  #chat-quick button { background: #0b1220; color: var(--txt); padding: 6px 12px; font-weight: 400; white-space: nowrap; }
+  #chat-form { display: flex; gap: 8px; margin-top: 4px; }
   [hidden] { display: none !important; }
 </style>
 </head>
@@ -45,17 +66,29 @@
   </form>
 </section>
 
-<div id="lobby" hidden style="display:flex;flex-direction:column;flex:1;min-height:0">
-  <section><ul id="players"></ul></section>
-  <section id="chat">
-    <div id="log"></div>
-    <form id="send">
-      <input id="text" placeholder="Message de test…" maxlength="500" autocomplete="off">
-      <button type="submit">Envoyer</button>
-    </form>
+<div id="lobby" hidden>
+  <section>
+    <ul id="players"></ul>
+    <p class="hint">Touche un joueur pour lui écrire en privé.</p>
   </section>
 </div>
 
+<button id="chat-toggle" type="button" aria-label="Ouvrir le chat" hidden>💬<span id="chat-badge" hidden>0</span></button>
+<aside id="chat-panel" hidden>
+  <div id="chat-head">
+    <div id="chat-tabs"></div>
+    <button id="chat-close" type="button" aria-label="Replier le chat">▾</button>
+  </div>
+  <div id="chat-log"></div>
+  <div id="chat-typing"></div>
+  <div id="chat-quick"></div>
+  <form id="chat-form">
+    <input id="chat-input" placeholder="Message…" maxlength="500" autocomplete="off">
+    <button type="submit">Envoyer</button>
+  </form>
+</aside>
+
+<script src="chat.js"></script>
 <script src="client.js"></script>
 </body>
 </html>

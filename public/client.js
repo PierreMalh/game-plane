@@ -23,19 +23,6 @@
     el.className = ok ? 'ok' : 'ko';
   }
 
-  function addLine(from, text) {
-    const p = document.createElement('p');
-    if (from) {
-      const b = document.createElement('b');
-      b.textContent = from + ' : ';
-      p.append(b);
-    }
-    p.append(document.createTextNode(text));
-    const log = $('log');
-    log.append(p);
-    log.scrollTop = log.scrollHeight;
-  }
-
   function renderPlayers(list) {
     const ul = $('players');
     ul.replaceChildren();
@@ -44,6 +31,10 @@
       li.textContent = (p.online ? '● ' : '○ ') + p.name;
       if (!p.online) li.className = 'off';
       if (p.id === myId) li.classList.add('me');
+      else {
+        li.classList.add('tap'); // ouvre un chat privé
+        li.addEventListener('click', () => GPChat.openDm(p.id));
+      }
       ul.append(li);
     }
   }
@@ -51,6 +42,13 @@
   function showLobby() {
     $('login-box').hidden = true;
     $('lobby').hidden = false;
+    GPChat.open();
+  }
+
+  function sendJson(obj) {
+    if (!ws || ws.readyState !== WebSocket.OPEN) return false;
+    ws.send(JSON.stringify(obj));
+    return true;
   }
 
   function connect() {
@@ -72,12 +70,16 @@
       if (msg.type === 'welcome') {
         myId = msg.id;
         store.set('gp.id', myId);
+        GPChat.setIdentity(myId);
+        GPChat.setPlayers(msg.players);
+        GPChat.snapshot(msg.chat);
         if (!joined) { joined = true; showLobby(); }
         renderPlayers(msg.players);
       } else if (msg.type === 'players') {
+        GPChat.setPlayers(msg.players);
         renderPlayers(msg.players);
-      } else if (msg.type === 'chat') {
-        addLine(msg.from, msg.text);
+      } else {
+        GPChat.onMessage(msg);
       }
     };
 
@@ -97,20 +99,13 @@
     ws.send(JSON.stringify({ type: 'join', name: myName, id: myId }));
   });
 
-  $('send').addEventListener('submit', (e) => {
-    e.preventDefault();
-    const text = $('text').value.trim();
-    if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
-    ws.send(JSON.stringify({ type: 'chat', text }));
-    $('text').value = '';
-  });
-
   // Au retour au premier plan (iOS coupe les sockets en arrière-plan), on
   // force une reconnexion si la socket n'est plus ouverte.
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && ws && ws.readyState === WebSocket.CLOSED) { retry = 0; connect(); }
   });
 
+  GPChat.init({ send: sendJson });
   if (myName) $('name').value = myName;
   connect();
 })();

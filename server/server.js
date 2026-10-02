@@ -8,6 +8,7 @@ const os = require('os');
 const path = require('path');
 const crypto = require('crypto');
 const { acceptUpgrade } = require('./ws');
+const { createChat } = require('./chat');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const MIME = {
@@ -21,13 +22,13 @@ const MIME = {
 };
 
 const MAX_NAME = 20;
-const MAX_CHAT = 500;
 const HEARTBEAT_MS = 15000;
 const OFFLINE_TTL_MS = 5 * 60 * 1000; // un joueur déconnecté garde sa place 5 min
 
 function createApp({ offlineTtlMs = OFFLINE_TTL_MS, heartbeatMs = HEARTBEAT_MS } = {}) {
   // id → { id, name, conn|null, lastSeen }
   const players = new Map();
+  const chat = createChat({ players });
 
   const publicPlayers = () =>
     [...players.values()].map((p) => ({ id: p.id, name: p.name, online: !!p.conn }));
@@ -62,7 +63,7 @@ function createApp({ offlineTtlMs = OFFLINE_TTL_MS, heartbeatMs = HEARTBEAT_MS }
     player.conn = conn;
     player.lastSeen = Date.now();
     state.player = player;
-    conn.send(JSON.stringify({ type: 'welcome', id: player.id, players: publicPlayers() }));
+    conn.send(JSON.stringify({ type: 'welcome', id: player.id, players: publicPlayers(), chat: chat.snapshot(player.id) }));
     broadcastPlayers();
   }
 
@@ -75,8 +76,10 @@ function createApp({ offlineTtlMs = OFFLINE_TTL_MS, heartbeatMs = HEARTBEAT_MS }
     if (!state.player) return; // tout le reste exige d'avoir rejoint
 
     if (msg.type === 'chat') {
-      const text = String(msg.text ?? '').trim().slice(0, MAX_CHAT);
-      if (text) broadcast({ type: 'chat', from: state.player.name, id: state.player.id, text, ts: Date.now() });
+      const res = chat.send(state.player.id, msg.channel, msg.text);
+      if (!res.ok && res.reason === 'rate') conn.send(JSON.stringify({ type: 'chat-error', reason: 'rate' }));
+    } else if (msg.type === 'typing') {
+      chat.typing(state.player.id, msg.channel);
     }
   }
 
@@ -111,13 +114,13 @@ function createApp({ offlineTtlMs = OFFLINE_TTL_MS, heartbeatMs = HEARTBEAT_MS }
     const now = Date.now();
     let removed = false;
     for (const [id, p] of players) {
-      if (!p.conn && now - p.lastSeen > offlineTtlMs) { players.delete(id); removed = true; }
+      if (!p.conn && now - p.lastSeen > offlineTtlMs) { chat.forget(id); players.delete(id); removed = true; }
     }
     if (removed) broadcastPlayers();
   }, Math.min(offlineTtlMs, 30000));
   sweeper.unref();
 
-  return { attach, players, stop() { clearInterval(heartbeat); clearInterval(sweeper); } };
+  return { attach, players, chat, stop() { clearInterval(heartbeat); clearInterval(sweeper); } };
 }
 
 // Chemin d'une requête, ou null si l'URL est malformée (ne doit jamais faire planter le serveur).

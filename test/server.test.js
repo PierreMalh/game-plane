@@ -159,3 +159,41 @@ test('une URL malformée ne fait pas planter le serveur', async () => {
   const res = await fetch(`http://127.0.0.1:${srv.port}/`);
   assert.equal(res.status, 200);
 });
+
+test('chat : le privé ne fuit pas, l’historique revient à la reconnexion', async () => {
+  const a = await join('Alice');
+  const b = await join('Bob');
+  const c = await join('Carl');
+
+  a.send({ type: 'chat', channel: `dm:${b.welcome.id}`, text: 'secret' });
+  const got = await b.next((m) => m.type === 'chat');
+  assert.equal(got.channel, `dm:${a.welcome.id}`);
+  assert.equal(got.text, 'secret');
+
+  c.send({ type: 'chat', text: 'public' });
+  const seenByC = await c.next((m) => m.type === 'chat');
+  assert.equal(seenByC.text, 'public'); // Carl n'a rien reçu du privé avant
+
+  // Bob se reconnecte : il retrouve général + privé avec l'historique.
+  b.ws.close();
+  const b2 = await join('Bob', b.welcome.id);
+  const chat = b2.welcome.chat;
+  assert.deepEqual(chat.history.general.map((m) => m.text), ['public']);
+  assert.deepEqual(chat.history[`dm:${a.welcome.id}`].map((m) => m.text), ['secret']);
+  // Carl, lui, ne voit que le général.
+  assert.equal(c.welcome.chat.channels.length, 1);
+  for (const x of [a, b2, c]) x.ws.close();
+});
+
+test('chat : « écrit… » et limite de débit via le serveur', async () => {
+  const a = await join('Alice');
+  const b = await join('Bob');
+  a.send({ type: 'typing', channel: 'general' });
+  const t = await b.next((m) => m.type === 'typing');
+  assert.equal(t.from, 'Alice');
+
+  for (let i = 0; i < 12; i++) a.send({ type: 'chat', text: 'spam' + i });
+  const err = await a.next((m) => m.type === 'chat-error');
+  assert.equal(err.reason, 'rate');
+  a.ws.close(); b.ws.close();
+});
