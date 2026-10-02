@@ -197,3 +197,41 @@ test('chat : « écrit… » et limite de débit via le serveur', async () => {
   assert.equal(err.reason, 'rate');
   a.ws.close(); b.ws.close();
 });
+
+test('puissance 4 par WebSocket : partie, reconnexion en cours de partie, chat de table', async () => {
+  const a = await join('Alice');
+  const b = await join('Bob');
+  const c = await join('Carl');
+
+  a.send({ type: 'table-create', game: 'connect4' });
+  const waiting = await a.next((m) => m.type === 'table');
+  assert.equal(waiting.table.status, 'waiting');
+  const listed = await c.next((m) => m.type === 'tables' && m.tables.length === 1);
+  b.send({ type: 'table-join', table: listed.tables[0].id });
+  const started = await a.next((m) => m.type === 'table' && m.table.status === 'playing');
+  assert.equal(started.table.me, 0);
+
+  // Mauvais tour → erreur renvoyée au seul fautif.
+  b.send({ type: 'game-action', action: { type: 'drop', col: 0 } });
+  assert.equal((await b.next((m) => m.type === 'game-error')).error, 'not-your-turn');
+
+  // Alice joue ; Bob se déconnecte puis revient : il retrouve la table et le plateau.
+  a.send({ type: 'game-action', action: { type: 'drop', col: 3 } });
+  await b.next((m) => m.type === 'table' && m.table.state.board[5][3] === 0);
+  b.ws.close();
+  const b2 = await join('Bob', b.welcome.id);
+  assert.equal(b2.welcome.table.status, 'playing');
+  assert.equal(b2.welcome.table.state.board[5][3], 0);
+  assert.equal(b2.welcome.table.me, 1);
+
+  // Chat de table : privé aux deux joueurs.
+  const cid = b2.welcome.table.channel;
+  assert.equal(b2.welcome.chat.channels.some((x) => x.id === cid), true);
+  a.send({ type: 'chat', channel: cid, text: 'à toi' });
+  assert.equal((await b2.next((m) => m.type === 'chat')).text, 'à toi');
+  assert.equal(c.welcome.chat.channels.some((x) => x.id === cid), false);
+  c.send({ type: 'chat', channel: cid, text: 'intrus' });
+  c.send({ type: 'chat', text: 'visible' });
+  assert.equal((await c.next((m) => m.type === 'chat')).text, 'visible'); // l'intrus n'a rien émis
+  for (const x of [a, b2, c]) x.ws.close();
+});

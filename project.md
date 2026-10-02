@@ -50,3 +50,30 @@
 - **Tests** : 14 nouveaux (module chat avec joueurs factices + intégration
   WebSocket : confidentialité des privés, historique, débit). Vérifié dans
   Chromium avec 3 joueurs (général, privé, badge, « écrit… », rechargement).
+
+## 2026-10-02 — Cadre de jeux + Puissance 4
+- **Serveur autoritaire** : `connect4.js` est une logique pure (plateau 6×7,
+  victoire sur 4 directions, nul, colonne pleine, tour). Le client n'envoie que
+  « poser en colonne N » ; tout coup est validé côté serveur.
+- **Contrat de jeu** (`server/games/index.js`) : `init / action / view / isOver /
+  nextFirst`. `view(état, joueur)` existe déjà pour les futurs jeux à
+  information cachée (cartes, bataille navale) ; Puissance 4 renvoie l'état tel quel.
+- **Tables** (`server/tables.js`) : on crée une table, un autre joueur la
+  rejoint, la partie démarre quand elle est pleine. Un joueur = une table à la
+  fois. Les tables en attente sont diffusées à tous (« Parties ouvertes »).
+- **Abandon = forfait** (confirmation côté client). Les joueurs partis restent
+  dans `players` pour garder des index de vue stables ; la table se ferme quand
+  plus personne n'y est assis. Joueur resté hors ligne > 5 min : forfait.
+- **Revanche** : démarre quand les deux la demandent, le premier joueur
+  alterne. Désactivée si l'adversaire est parti.
+- **Chat de table** : canal `table:<id>` créé avec la table (valide l'API
+  `createChannel`/`addMember`), membres = joueurs assis, supprimé à la fermeture.
+  Le bouton « 💬 Chat de la table » ouvre le volet dessus.
+- **Reconnexion** : `welcome.table` redonne la partie en cours (plateau compris).
+- **UX** : le chat se replie au début de la partie pour laisser la place au
+  plateau (le badge signale les messages) ; vibration quand c'est son tour
+  (ignorée sur iOS) ; jetons rouge/jaune + emoji dans les textes pour ne pas
+  dépendre de la seule couleur.
+- **Tests** : 18 nouveaux (règles, tables, WebSocket) ; vérifié dans Chromium
+  avec 3 joueurs (création, partie, rechargement en cours de partie, victoire,
+  revanche, chat de table, abandon).

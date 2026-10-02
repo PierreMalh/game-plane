@@ -9,7 +9,7 @@ stores.
 
 ## État actuel
 Salon unique avec liste des joueurs en direct et **chat à canaux** (général,
-privés, salons de jeu) dans un volet global repliable. Aucun jeu encore.
+privés, salons de jeu) dans un volet global repliable. Jeux : **Puissance 4**.
 
 ## Chat (important pour les jeux : on ne pourra pas parler dans l'avion)
 - `server/chat.js` : canaux `general`, `dm:<idJoueur>` (privé) et salons créés
@@ -32,3 +32,14 @@ son hotspot Wi-Fi. Voir `README.md`.
 ## Conventions
 - Commentaires et docs en français.
 - Un commit par feature, `project.md` mis à jour au fil de l'eau.
+
+## Jeux
+- `server/games/<jeu>.js` (logique pure, serveur autoritaire) + enregistrement
+  dans `server/games/index.js` ; contrat décrit en tête de ce fichier.
+- `server/tables.js` : tables (créer / rejoindre / quitter = forfait / revanche),
+  une table par joueur, canal de chat privé `table:<id>` créé avec la table.
+- Client : `public/games.js` (cadre commun : lobby, parties ouvertes, vue de
+  partie) + `public/games/<jeu>.js` (`GPGames.register({ id, name, status,
+  render })`) + CSS du jeu.
+- **Ajouter un jeu** = un fichier serveur, un fichier client, deux lignes
+  d'enregistrement ; lobby, tables, chat et reconnexion sont déjà gérés.

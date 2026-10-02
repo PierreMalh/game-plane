@@ -118,6 +118,16 @@ function createChat({ players, now = Date.now }) {
     return true;
   }
 
+  // Ajoute un joueur à un salon existant (il reçoit le canal et son historique).
+  function addMember(id, pid) {
+    const ch = channels.get(id);
+    if (!ch || ch.kind !== 'room' || ch.members.has(pid)) return false;
+    ch.members.add(pid);
+    const conn = players.get(pid)?.conn;
+    if (conn) conn.send(JSON.stringify({ type: 'channel', channel: { id, label: ch.label, kind: 'room' }, history: ch.history }));
+    return true;
+  }
+
   function removeChannel(id) {
     const ch = channels.get(id);
     if (!ch || ch.kind !== 'room') return;
@@ -133,7 +143,7 @@ function createChat({ players, now = Date.now }) {
     }
   }
 
-  return { send, typing, snapshot, createChannel, removeChannel, forget };
+  return { send, typing, snapshot, createChannel, addMember, removeChannel, forget };
 }
 
 module.exports = { createChat, MAX_TEXT, HISTORY_LIMIT, RATE_MAX };
