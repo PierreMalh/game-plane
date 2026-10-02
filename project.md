@@ -27,3 +27,26 @@
 - **Tests** : serveur neuf par test (le salon est unique), client = WebSocket
   natif de Node 22, ce qui valide aussi `ws.js` face à une implémentation tierce.
   Vérifié en plus dans Chromium avec deux joueurs.
+
+## 2026-10-02 — Chat à canaux (on ne pourra pas parler dans l'avion)
+- **Pourquoi** : les jeux sociaux (loup-garou, undercover…) reposent sur la
+  parole, impossible en vol. Le chat devient un élément central, pas un test.
+- **Canaux** : `general` ; privés `dm:<idAutre>` (créés à la volée, l'id interne
+  est trié `dm:a|b` et non utilisable par un client) ; salons à membres
+  explicites créés par les jeux. Le serveur n'envoie un message qu'aux membres :
+  un message du chat des loups ne parvient jamais aux villageois.
+- **Historique serveur** : 200 messages par canal, renvoyé dans `welcome.chat`
+  à chaque (re)connexion ; les privés d'un joueur oublié (5 min hors ligne)
+  sont supprimés.
+- **Anti-flood** : 8 messages / 5 s par joueur (`chat-error` « rate » sinon),
+  « écrit… » limité à 1/s côté serveur et 1 toutes les 2 s côté client.
+- **UI** : volet repliable global (hors du cadre des jeux, donc rien à intégrer
+  par jeu), onglets, compteur de non-lus sur le bouton et par onglet, messages
+  rapides (👍 😂 😮 Oui Non À toi ! Prêt ✋) pour les saisies lentes, vibration
+  à l'arrivée d'un message (ignorée sur iOS), volet recalé au-dessus du
+  clavier virtuel via `visualViewport`. Un joueur de la liste ouvre un privé.
+- **Non-lus à la reconnexion** : le premier chargement ne marque rien non lu ;
+  ensuite les messages des autres reçus pendant la coupure le sont.
+- **Tests** : 14 nouveaux (module chat avec joueurs factices + intégration
+  WebSocket : confidentialité des privés, historique, débit). Vérifié dans
+  Chromium avec 3 joueurs (général, privé, badge, « écrit… », rechargement).
