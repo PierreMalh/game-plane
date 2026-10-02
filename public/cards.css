@@ -1,0 +1,28 @@
+.hand { display: flex; flex-wrap: wrap; justify-content: center; gap: 6px 4px; padding-top: 10px; }
+.card { --cw: 44px; position: relative; width: var(--cw); height: calc(var(--cw) * 1.42); border-radius: 6px; background: #fff;
+        color: #111827; border: 1px solid #94a3b8; padding: 0; display: inline-block; font-weight: 700; flex: none;
+        box-shadow: 0 1px 2px #0006; transition: transform .12s; }
+.card.small { --cw: 30px; border-radius: 4px; }
+.card.sH, .card.sD { color: #dc2626; }
+.card .r { position: absolute; top: 2px; left: 4px; font-size: calc(var(--cw) * .34); line-height: 1; }
+.card .su { position: absolute; top: calc(var(--cw) * .36); left: 4px; font-size: calc(var(--cw) * .28); line-height: 1; }
+.card .big { position: absolute; right: 4px; bottom: 2px; font-size: calc(var(--cw) * .56); line-height: 1; }
+.card.sel { transform: translateY(-10px); outline: 3px solid var(--acc); z-index: 1; }
+.card.dis { opacity: .4; }
+button.card { cursor: pointer; }
+.card.back { background: repeating-linear-gradient(45deg, #1d4ed8, #1d4ed8 4px, #1e40af 4px, #1e40af 8px); border: 2px solid #fff; }
+.cards-row { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: center; justify-content: center; }
+.cards-row > .cp-table { min-width: 90px; }
+.cp-root { display: flex; flex-direction: column; gap: 12px; }
+.cp-box { background: var(--card); border-radius: 12px; padding: 12px; }
+.cp-players { display: flex; flex-direction: column; gap: 6px; }
+.cp-p { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px; background: #0b1220; border-radius: 10px; }
+.cp-p i { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.cp-p.turn { outline: 2px solid var(--acc); }
+.cp-p.out { opacity: .55; }
+.cp-p .chips { margin-left: auto; display: flex; flex-wrap: wrap; gap: 6px; }
+.cp-info { font-weight: 600; margin-bottom: 6px; text-align: center; }
+.cp-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 10px; }
+.cp-table { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.cp-log { max-height: 7em; overflow-y: auto; font-size: .85rem; display: flex; flex-direction: column; gap: 2px; }
+.cp-big { font-size: 2.2rem; line-height: 1; }
