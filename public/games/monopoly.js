@@ -124,7 +124,7 @@
   // ------------------------------------------------------------------ fiche d'une case
 
   function drawDetail(table, s) {
-    const i = ui.sel ?? s.players[table.me].pos;
+    const i = ui.sel ?? (s.players[table.me] ?? s.players[s.turn]).pos; // spectateur : case du joueur actif
     const sq = SQUARES[i];
     const pr = s.props[i];
     const box = el('div', 'mo-detail');
@@ -171,6 +171,7 @@
     const row = el('div', 'mo-btns');
 
     if (s.phase === 'over') { line(`${nm(table, s.winner)} remporte la partie ! 🎉`); return box; }
+    if (table.spectator) { line(s.phase === 'auction' ? `Enchères en cours sur ${SQUARES[s.auction.sq].name}.` : `Au tour de ${nm(table, s.turn)}.`); return box; }
     if (s.players[me].bankrupt) { line('Tu es éliminé. Tu peux suivre la partie et discuter dans le chat.'); return box; }
 
     const jailed = s.players[me].jail > 0;
@@ -265,14 +266,14 @@
       const info = el('span', 'hint', p.bankrupt ? 'éliminé' : `${where}${p.jail ? ' 🔒' : ''}${p.cards ? ` 🃏${p.cards}` : ''}`);
       const cash = el('span', 'cash', p.bankrupt ? '—' : money(p.cash));
       row.append(name, info, cash);
-      if (i !== table.me && !p.bankrupt && s.hints.canTrade && !s.players[table.me].bankrupt) {
+      if (i !== table.me && !p.bankrupt && s.hints.canTrade && !s.players[table.me]?.bankrupt) {
         row.classList.add('tap');
         row.title = 'Proposer un échange';
         row.addEventListener('click', () => openTrade(i));
       }
       box.append(row);
     });
-    if (s.hints.canTrade && !s.trade && s.players.filter((p) => !p.bankrupt).length > 1 && !s.players[table.me].bankrupt) {
+    if (s.hints.canTrade && !s.trade && s.players.filter((p) => !p.bankrupt).length > 1 && !s.players[table.me]?.bankrupt) {
       box.append(el('div', 'hint', 'Touche un joueur pour lui proposer un échange.'));
     }
     return box;
@@ -450,8 +451,10 @@
     root.append(drawBoard(table, s), drawDetail(table, s), drawActions(ctx, s, table));
     const pending = drawPendingTrade(ctx, s, table);
     if (pending) root.append(pending);
-    root.append(drawPlayers(ctx, s, table), drawProperties(ctx, s, table), el('h2', null, 'Journal'), drawLog(table, s));
-    if (ui.trade && s.hints.canTrade && !s.trade && !s.players[table.me].bankrupt) root.append(drawTradeComposer(ctx, s, table));
+    root.append(drawPlayers(ctx, s, table));
+    if (!table.spectator) root.append(drawProperties(ctx, s, table)); // « Mes titres » : rien pour un spectateur
+    root.append(el('h2', null, 'Journal'), drawLog(table, s));
+    if (ui.trade && s.hints.canTrade && !s.trade && !s.players[table.me]?.bankrupt) root.append(drawTradeComposer(ctx, s, table));
     else if (ui.trade) ui.trade = null; // plus possible (phase, proposition en cours…)
     container.append(root);
   }
@@ -489,7 +492,7 @@
 
     isMyTurn(table) {
       const s = table.state;
-      if (s.winner !== null || s.players[table.me].bankrupt) return false;
+      if (s.winner !== null || !s.players[table.me] || s.players[table.me].bankrupt) return false;
       const h = s.hints;
       return h.actions.length > 0;
     },
@@ -497,7 +500,7 @@
     status(table) {
       const s = table.state;
       if (s.winner !== null) return s.winner === table.me ? 'Tu as gagné la partie ! 🎉' : `${nm(table, s.winner)} a gagné la partie.`;
-      if (s.players[table.me].bankrupt) return 'Tu es éliminé.';
+      if (s.players[table.me]?.bankrupt) return 'Tu es éliminé.';
       const who = nm(table, s.turn);
       switch (s.phase) {
         case 'auction': return `Enchères sur ${SQUARES[s.auction.sq].name}`;

@@ -4,6 +4,9 @@
 //   status(table)         → texte d'état (« À toi de jouer »…)
 //   render(el, ctx)       → dessine la partie dans `el` ; ctx = { table, send(action), myTurn }
 // Le cadre (en-tête, revanche, quitter, chat de table) est le même pour tous.
+// Spectateur : table.spectator est vrai et table.me vaut -1 ; la vue ne contient que
+// l'information publique et hints n'offre aucune action. Chaque jeu doit dessiner ce cas
+// (pas de « Tu… », pas de « ma main »).
 
 window.GPGames = (() => {
   const $ = (id) => document.getElementById(id);
@@ -64,16 +67,29 @@ window.GPGames = (() => {
 
     const open = tables.filter((t) => t.status === 'waiting');
     $('open-tables').hidden = open.length === 0;
-    const ul = $('tables');
+    fillTables($('tables'), open, (t) => `${t.gameName} — ${t.players.map((p) => p.name).join(', ')} (${t.players.length}/${t.max})`,
+      'Rejoindre', 'table-join');
+
+    // Parties lancées (ou finies, en attente de revanche) : on peut les regarder.
+    const live = tables.filter((t) => t.status !== 'waiting');
+    $('live-tables').hidden = live.length === 0;
+    fillTables($('live-list'), live, (t) => `${t.gameName}${t.status === 'over' ? ' (terminée)' : ''} — ${t.players.map((p) => p.name).join(', ')}${watchers(t)}`,
+      '👁 Regarder', 'table-watch');
+  }
+
+  const watchers = (t) => (t.spectators?.length ? ` · 👁 ${t.spectators.length}` : '');
+
+  function fillTables(ul, list, label, action, type) {
     ul.replaceChildren();
-    for (const t of open) {
+    for (const t of list) {
       const li = document.createElement('li');
       const span = document.createElement('span');
-      span.textContent = `${t.gameName} — ${t.players.map((p) => p.name).join(', ')} (${t.players.length}/${t.max})`;
+      span.textContent = label(t);
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.textContent = 'Rejoindre';
-      btn.addEventListener('click', () => send({ type: 'table-join', table: t.id }));
+      btn.textContent = action;
+      if (type === 'table-watch') btn.className = 'sec';
+      btn.addEventListener('click', () => send({ type, table: t.id }));
       li.append(span, btn);
       ul.append(li);
     }
@@ -93,6 +109,16 @@ window.GPGames = (() => {
     count.style.textAlign = 'center';
     count.textContent = `${table.players.length} / ${table.max} joueurs`;
     body.append(ul, count);
+    // Spectateur d'une table en attente : il peut prendre une place libre.
+    if (table.spectator && table.players.length < table.max) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = 'Prendre une place';
+      btn.style.display = 'block';
+      btn.style.margin = '12px auto 0';
+      btn.addEventListener('click', () => send({ type: 'table-join', table: table.id }));
+      body.append(btn);
+    }
     if (table.manual && table.me === 0) {
       const btn = document.createElement('button');
       btn.type = 'button';
@@ -114,13 +140,18 @@ window.GPGames = (() => {
     const def = registry.get(table.game);
     const ctx = {
       table,
-      myTurn: table.status === 'playing' && !!def?.isMyTurn?.(table),
+      myTurn: !table.spectator && table.status === 'playing' && !!def?.isMyTurn?.(table),
       send: (action) => send({ type: 'game-action', action }),
     };
-    $('gv-title').textContent = def ? def.name : table.gameName;
+    $('gv-title').textContent = (def ? def.name : table.gameName) + (table.spectator ? ' · 👁 spectateur' : '');
+    const names = table.spectators.map((p) => p.name);
+    $('gv-watchers').hidden = names.length === 0;
+    $('gv-watchers').textContent = `👁 Regarde${names.length > 1 ? 'nt' : ''} : ${names.join(', ')}`;
 
     let status;
-    if (table.status === 'waiting') {
+    if (table.status === 'waiting' && table.spectator) {
+      status = 'En attente des joueurs…';
+    } else if (table.status === 'waiting') {
       status = table.manual
         ? (table.me === 0 ? 'Lance la partie quand tout le monde est là.' : `${table.players[0].name} lancera la partie…`)
         : 'En attente d’un adversaire…';
@@ -140,13 +171,13 @@ window.GPGames = (() => {
     const over = table.status === 'over';
     const present = table.players.length - table.left.length;
     const fixed = table.min === table.max;
-    rematch.hidden = !over || (fixed && table.left.length > 0) || present < table.min;
+    rematch.hidden = table.spectator || !over || (fixed && table.left.length > 0) || present < table.min;
     rematch.disabled = table.rematch.includes(table.me);
     rematch.textContent = rematch.disabled
       ? (table.max > 2 ? 'En attente des autres…' : 'En attente de l’adversaire…')
       : 'Rejouer';
 
-    $('gv-leave').textContent = table.status === 'playing' ? 'Abandonner' : 'Quitter';
+    $('gv-leave').textContent = table.spectator ? 'Arrêter de regarder' : table.status === 'playing' ? 'Abandonner' : 'Quitter';
 
     // À chaque début de partie, on replie le chat pour laisser la place au plateau.
     if (table.status !== lastStatus && (table.status === 'playing' || lastStatus === null)) GPChat.close();
@@ -178,7 +209,7 @@ window.GPGames = (() => {
     $('gv-leave').addEventListener('click', () => {
       const def = table && registry.get(table.game);
       const warning = def?.leaveWarning ?? 'Abandonner la partie ? Ton adversaire gagnera.';
-      if (table?.status === 'playing' && !confirm(warning)) return;
+      if (table?.status === 'playing' && !table.spectator && !confirm(warning)) return;
       send({ type: 'table-leave' });
     });
     $('gv-rematch').addEventListener('click', () => send({ type: 'table-rematch' }));

@@ -19,7 +19,10 @@
       const s = table.state;
       if (s.winner === 'draw') return 'Match nul !';
       if (s.winner !== null) {
-        if (s.forfeit) return s.winner === table.me ? 'Ton adversaire a abandonné. Tu gagnes !' : 'Tu as abandonné.';
+        if (s.forfeit) {
+          if (table.spectator) return `${name(table, s.winner)} gagne par abandon.`;
+          return s.winner === table.me ? 'Ton adversaire a abandonné. Tu gagnes !' : 'Tu as abandonné.';
+        }
         return s.winner === table.me ? 'Tu as gagné ! 🎉' : `${name(table, s.winner)} a gagné.`;
       }
       return s.turn === table.me ? `À toi de jouer ${EMOJI[table.me]}` : `Au tour de ${name(table, s.turn)} ${EMOJI[s.turn]}`;

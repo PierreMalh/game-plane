@@ -4,6 +4,9 @@
 // (autoStart === false), l'hôte (premier assis) la lance dès qu'il y a
 // minPlayers joueurs. Un joueur n'est que sur une table à la fois. Chaque table
 // a son canal de chat privé « table:<id> ».
+// Spectateurs : un joueur qui n'est assis nulle part peut regarder une table
+// (une seule à la fois). Il reçoit la vue publique de la partie (view(état, -1) :
+// aucune main ni mot secret) et rejoint le chat de la table ; il ne peut pas jouer.
 
 const crypto = require('crypto');
 const { games } = require('./games');
@@ -14,6 +17,7 @@ const MAX_TABLES = 30;
 function createTables({ players, chat, broadcast }) {
   const tables = new Map();    // id → table
   const seat = new Map();      // idJoueur → idTable
+  const watch = new Map();     // idJoueur → idTable regardée (spectateur)
 
   const nameOf = (id) => players.get(id)?.name ?? '?';
   const chatId = (t) => `table:${t.id}`;
@@ -34,18 +38,21 @@ function createTables({ players, chat, broadcast }) {
       max: g.maxPlayers,
       manual: g.autoStart === false, // l'hôte lance la partie
       players: t.players.map((id) => ({ id, name: nameOf(id) })),
+      spectators: [...t.spectators].map((id) => ({ id, name: nameOf(id) })),
     };
   }
 
-  // Vue complète d'une table pour un joueur assis dedans.
+  // Vue complète d'une table pour un joueur assis dedans, ou pour un spectateur
+  // (me = -1 : la vue du jeu ne contient alors que l'information publique).
   function viewFor(pid) {
-    const t = tables.get(seat.get(pid));
+    const t = tables.get(seat.get(pid) ?? watch.get(pid));
     if (!t) return null;
-    const idx = t.players.indexOf(pid);
+    const idx = seat.has(pid) ? t.players.indexOf(pid) : -1;
     const g = games.get(t.game);
     return {
       ...summary(t),
       me: idx,
+      spectator: idx === -1,
       state: t.state ? g.view(t.state, idx) : null,
       rematch: [...t.rematch],
       left: t.players.filter((id) => seat.get(id) !== t.id), // adversaires partis : plus de revanche
@@ -56,7 +63,10 @@ function createTables({ players, chat, broadcast }) {
 
   const list = () => [...tables.values()].map(summary);
   const pushList = () => broadcast({ type: 'tables', tables: list() });
-  const pushTable = (t) => { for (const pid of t.players) if (seat.get(pid) === t.id) sendTo(pid, { type: 'table', table: viewFor(pid) }); };
+  const pushTable = (t) => {
+    for (const pid of t.players) if (seat.get(pid) === t.id) sendTo(pid, { type: 'table', table: viewFor(pid) });
+    for (const pid of t.spectators) sendTo(pid, { type: 'table', table: viewFor(pid) });
+  };
 
   function startRound(t) {
     const g = games.get(t.game);
@@ -69,6 +79,34 @@ function createTables({ players, chat, broadcast }) {
     chat.removeChannel(chatId(t));
     tables.delete(t.id);
     for (const pid of t.players) if (seat.get(pid) === t.id) seat.delete(pid);
+    // Les spectateurs reviennent au salon.
+    for (const pid of t.spectators) { watch.delete(pid); sendTo(pid, { type: 'table', table: null }); }
+  }
+
+  // Retire un spectateur de la table qu'il regarde (sans rien lui envoyer).
+  function stopWatching(pid) {
+    const t = tables.get(watch.get(pid));
+    watch.delete(pid);
+    if (!t) return null;
+    t.spectators.delete(pid);
+    chat.removeMember(chatId(t), pid);
+    return t;
+  }
+
+  // Regarder une table (en attente, en cours ou finie) sans y jouer.
+  function spectate(pid, tableId) {
+    const t = tables.get(tableId);
+    if (!t) return { ok: false, error: 'no-table' };
+    if (seat.has(pid)) return { ok: false, error: 'already-seated' };
+    if (watch.get(pid) === t.id) return { ok: true };
+    const prev = stopWatching(pid);
+    if (prev) pushTable(prev);
+    t.spectators.add(pid);
+    watch.set(pid, t.id);
+    chat.addMember(chatId(t), pid);
+    pushTable(t); // les joueurs voient qui regarde
+    pushList();
+    return { ok: true };
   }
 
   function create(pid, gameId) {
@@ -76,7 +114,9 @@ function createTables({ players, chat, broadcast }) {
     if (!g) return { ok: false, error: 'unknown-game' };
     if (seat.has(pid)) return { ok: false, error: 'already-seated' };
     if (tables.size >= MAX_TABLES) return { ok: false, error: 'too-many' };
-    const t = { id: crypto.randomUUID().slice(0, 8), game: gameId, status: 'waiting', players: [pid], state: null, rematch: new Set(), first: 0 };
+    const prev = stopWatching(pid); // un spectateur qui crée sa table arrête de regarder
+    if (prev) pushTable(prev);
+    const t = { id: crypto.randomUUID().slice(0, 8), game: gameId, status: 'waiting', players: [pid], spectators: new Set(), state: null, rematch: new Set(), first: 0 };
     tables.set(t.id, t);
     seat.set(pid, t.id);
     chat.createChannel(chatId(t), g.name, [pid]);
@@ -91,6 +131,9 @@ function createTables({ players, chat, broadcast }) {
     if (seat.has(pid)) return { ok: false, error: 'already-seated' };
     const g = games.get(t.game);
     if (t.status !== 'waiting' || t.players.length >= g.maxPlayers) return { ok: false, error: 'full' };
+    // Un spectateur peut prendre une place libre (de cette table ou d'une autre).
+    const prev = stopWatching(pid);
+    if (prev && prev !== t) pushTable(prev);
     t.players.push(pid);
     seat.set(pid, t.id);
     chat.addMember(chatId(t), pid);
@@ -123,6 +166,7 @@ function createTables({ players, chat, broadcast }) {
   // vide → fermée. Les joueurs partis restent dans t.players pour garder des
   // index de vue stables.
   function leave(pid) {
+    if (!seat.has(pid) && watch.has(pid)) return unwatch(pid);
     const t = tables.get(seat.get(pid));
     if (!t) return { ok: false, error: 'not-seated' };
     const g = games.get(t.game);
@@ -184,12 +228,23 @@ function createTables({ players, chat, broadcast }) {
     return { ok: true };
   }
 
+  // Le spectateur arrête de regarder et revient au salon.
+  function unwatch(pid) {
+    const t = stopWatching(pid);
+    if (!t) return { ok: false, error: 'not-watching' };
+    sendTo(pid, { type: 'table', table: null });
+    pushTable(t);
+    pushList();
+    return { ok: true };
+  }
+
   // Joueur définitivement parti (déconnecté trop longtemps) : forfait/fermeture.
   function playerGone(pid) {
     if (seat.has(pid)) leave(pid);
+    else if (watch.has(pid)) unwatch(pid);
   }
 
-  return { create, join, start, leave, action, rematch, playerGone, list, viewFor };
+  return { create, join, start, leave, spectate, unwatch, action, rematch, playerGone, list, viewFor };
 }
 
 module.exports = { createTables };

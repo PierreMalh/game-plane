@@ -438,9 +438,11 @@ function createGame(mode) {
     return [...hand].sort((a, b) => order.indexOf(suitOf(a)) - order.indexOf(suitOf(b)) || power(b) - power(a));
   }
 
+  // idx = -1 : spectateur (aucune main, aucune action).
   function view(st, idx) {
     const hints = { actions: [], legal: [], suits: [], bid: null };
-    if (st.phase === 'play' && st.turn === idx) {
+    const seated = idx >= 0 && idx < st.hands.length;
+    if (!seated) { /* spectateur : rien à proposer */ } else if (st.phase === 'play' && st.turn === idx) {
       hints.actions.push('play');
       hints.legal = legalCards(st, idx);
     } else if (st.phase === 'surcontre' && st.turn === idx) {
@@ -463,7 +465,7 @@ function createGame(mode) {
       turned: st.phase === 'bid1' || st.phase === 'bid2' ? st.turned : null,
       trump: st.trump, taker: st.taker,
       bid: st.bid && { ...st.bid }, contre: st.contre,
-      hand: sortedHand(st, st.hands[idx]),
+      hand: seated ? sortedHand(st, st.hands[idx]) : [],
       counts: st.hands.map((h) => h.length),
       trick: st.trick.map((t) => ({ ...t })),
       lastTrick: st.lastTrick && { winner: st.lastTrick.winner, cards: st.lastTrick.cards.map((t) => ({ ...t })) },

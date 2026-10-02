@@ -56,7 +56,7 @@
     root.replaceChildren();
     if (sel && sel.fen !== s.fen) sel = null;
 
-    const myColor = colorOf(table, table.me);
+    const myColor = table.spectator ? 'w' : colorOf(table, table.me); // spectateur : blancs en bas
     const grid = parseFen(s.fen);
     const legal = s.legal ?? {};
     const targets = sel ? legal[sel.from] ?? [] : [];
@@ -171,6 +171,10 @@
     const s = table.state;
     const box = el('div', 'ch-draw');
     if (s.winner !== null || table.status !== 'playing') return box;
+    if (table.spectator) { // spectateur : on montre la proposition sans pouvoir y répondre
+      if (s.drawOffer !== null) box.append(el('span', null, `${name(table, s.drawOffer)} propose la nulle`));
+      return box;
+    }
 
     if (s.drawOffer === null) {
       const b = el('button', 'sec', 'Proposer la nulle');
@@ -202,7 +206,10 @@
     status(table) {
       const s = table.state;
       if (s.winner !== null) {
-        if (s.forfeit) return s.winner === table.me ? 'Ton adversaire a abandonné. Tu gagnes !' : 'Tu as abandonné.';
+        if (s.forfeit) {
+          if (table.spectator) return `${name(table, s.winner)} gagne par abandon.`;
+          return s.winner === table.me ? 'Ton adversaire a abandonné. Tu gagnes !' : 'Tu as abandonné.';
+        }
         if (s.winner === 'draw') return REASONS[s.reason] ?? 'Match nul.';
         return s.winner === table.me ? 'Échec et mat ! Tu as gagné 🎉' : `Échec et mat : ${name(table, s.winner)} a gagné.`;
       }

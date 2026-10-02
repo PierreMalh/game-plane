@@ -46,6 +46,11 @@ son hotspot Wi-Fi. Voir `README.md`.
   dans `server/games/index.js` ; contrat décrit en tête de ce fichier.
 - `server/tables.js` : tables (créer / rejoindre / quitter = forfait / revanche),
   une table par joueur, canal de chat privé `table:<id>` créé avec la table.
+- **Spectateurs** (`tables.spectate` / `unwatch`, message `table-watch`) : un joueur non assis
+  regarde une table ; il reçoit `view(état, -1)` avec `table.me = -1` et `table.spectator = true`,
+  et entre dans le chat de la table. **Tout jeu doit supporter `view(état, -1)`** (information
+  publique seulement, `hints` sans action) et son client doit dessiner ce cas (test
+  `test/spectators.test.js` qui parcourt tous les jeux).
 - Client : `public/games.js` (cadre commun : lobby, parties ouvertes, vue de
   partie) + `public/games/<jeu>.js` (`GPGames.register({ id, name, status,
   render })`) + CSS du jeu.
