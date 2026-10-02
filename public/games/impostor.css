@@ -1,0 +1,21 @@
+.im-root { display: flex; flex-direction: column; gap: 12px; }
+.im-word, .im-actions, .im-last, .im-players, .im-clues { background: var(--card); border-radius: 12px; padding: 12px; }
+.im-word { text-align: center; }
+.im-w { font-size: 2rem; font-weight: 800; letter-spacing: .02em; margin: 4px 0; word-break: break-word; }
+.im-info { font-weight: 600; margin-bottom: 6px; }
+.im-reveal { margin-top: 8px; padding: 8px; background: #0b1220; border-radius: 8px; }
+.im-form { display: flex; gap: 8px; margin-top: 8px; }
+.im-btns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; align-items: center; }
+.im-btns.col { flex-direction: column; align-items: stretch; }
+.im-p { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 8px; background: #0b1220; border-radius: 10px; margin-bottom: 6px; }
+.im-p i { width: 12px; height: 12px; border-radius: 50%; flex: none; }
+.im-p.turn { outline: 2px solid var(--acc); }
+.im-p.dead { opacity: .55; }
+.im-p .chips { margin-left: auto; display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: .72rem; padding: 2px 8px; border-radius: 999px; background: #334155; }
+.chip.ok { background: #14532d; }
+.chip.now { background: var(--acc); color: #04263a; font-weight: 600; }
+.chip.imposter { background: #7f1d1d; }
+.chip.civil { background: #1e3a8a; }
+.im-cl { margin-bottom: 6px; }
+.im-clue { display: inline-block; background: #0b1220; border-radius: 999px; padding: 3px 10px; margin: 2px 4px 2px 0; font-size: .9rem; }

@@ -145,3 +145,30 @@
   **500 parties aléatoires** sans exception avec invariants : maisons/hôtels,
   cartes, argent ≥ 0, titres de faillis) ; vérifié dans Chromium à 3 joueurs
   (attente, achat, loyer, enchères, construction, échange, départ).
+
+## 2026-10-02 — Cherche l'imposteur (façon Undercover)
+- **Pourquoi ce jeu** : on ne pourra pas parler dans l'avion ; ici les indices passent
+  par le jeu et la discussion par le **chat de la table**, qui s'ouvre tout seul au début
+  de la phase de discussion (et se replie aux autres phases pour laisser la place à l'action).
+- **Règles** (3 à 8 joueurs, lancement par l'hôte) : les civils ont le même mot
+  secret, l'imposteur un mot **voisin** et **ne sait pas** qu'il l'est (70 paires FR ;
+  laquelle des deux sert aux civils est tirée au sort). 1 imposteur, 2 à partir de 8 joueurs.
+  Manche = un indice d'**un seul mot** par joueur (interdit de dire son propre mot,
+  accents/casse ignorés) → discussion libre → quand tous sont « prêts », **vote secret**
+  (on peut changer d'avis jusqu'au dernier vote) → le plus voté est éliminé et son rôle
+  révélé ; **égalité = personne**.
+- **Fin** : civils gagnent en éliminant le dernier imposteur, **sauf** si celui-ci
+  devine le mot des civils (phase `guess`, accents/casse ignorés) ; les imposteurs
+  gagnent dès qu'ils sont au moins aussi nombreux que les civils, ou si trop
+  d'égalités (> n+2 manches). Un départ en cours de partie sort le joueur sans révéler
+  son rôle (recale tour de parole / « prêts » / votes) ; l'imposteur qui part = victoire des civils.
+- **Secret côté serveur** : la vue ne contient que le mot du joueur, jamais celui de
+  l'autre camp (testé sur 300 parties aléatoires, à chaque coup et pour chaque joueur) ;
+  rôles et mots dévoilés seulement à l'élimination / en fin de partie ; les votes ne
+  sont visibles (qui → qui) qu'après le dépouillement.
+- **Pas de minuteur** (choix cohérent avec Business Class) : on passe au vote quand
+  tous sont prêts. Un joueur hors ligne bloque jusqu'à son éviction (5 min) ou son départ.
+- **Tests** : 21 nouveaux (règles, secret, départs à chaque phase, 300 parties
+  aléatoires) ; un test non déterministe (ordre de parole aléatoire) a été repéré et
+  corrigé en fixant les rôles. Vérifié dans Chromium à 4 joueurs (refus d'indices,
+  chat auto, vote, devinette, révélation, revanche).
