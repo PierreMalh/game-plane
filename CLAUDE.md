@@ -1,17 +1,27 @@
 # CLAUDE.md
 
 Ce fichier guide Claude Code (claude.ai/code) pour travailler dans ce dépôt.
-Il reprend les règles générales de travail établies sur le projet
-`lolandsport4boostex` ; la description technique propre à game-plane
-(stack, commandes, architecture) reste à compléter ci-dessous.
 
 ## Projet
 
-_À compléter : but du projet, stack, structure du repo._
+Jeux multijoueur entre amis sur téléphone, **sans internet** (pensé pour
+l'avion) : un téléphone Android hôte fait tourner le serveur sous Termux et
+partage son point d'accès Wi-Fi, les autres joueurs ouvrent une page web.
+Node ≥ 18, **zéro dépendance npm**, client HTML/JS vanilla. Architecture et
+conventions détaillées dans `CONTEXT.md`.
+
+- `server/` : serveur HTTP statique + WebSocket maison (`ws.js`), chat,
+  tables, moteurs de jeu (`games/`), bibliothèque tierce copiée (`vendor/`).
+- `public/` : client (salon, chat, cadre de jeux, un fichier par jeu).
+- `test/` : tests `node:test`.
 
 ## Commandes
 
-_À compléter : installation, lancement, build, tests (y compris lancer un seul test)._
+- Lancer : `npm start` (port 8080 par défaut, `PORT=9000 npm start` pour un autre).
+- Tous les tests : `npm test`.
+- Un seul fichier de test : `node --test test/belote.test.js`.
+- Un seul test par son nom : `node --test --test-name-pattern="contre" test/coinche.test.js`.
+- Aucune installation ni build.
 
 ## Documentation à tenir à jour
 
@@ -20,8 +30,8 @@ _À compléter : installation, lancement, build, tests (y compris lancer un seul
   nouvelle feature**, au fur et à mesure.
 - `CONTEXT.md` — point d'entrée de reprise rapide : état actuel, stack,
   déploiement, conventions. À lire en premier en début de session.
-- Ces fichiers sont à créer dès la première feature ; `project.md` et
-  `CONTEXT.md` font foi en cas de contradiction avec tout autre document.
+- `README.md` — documentation utilisateur (règles des jeux, dépannage).
+- `project.md` et `CONTEXT.md` font foi en cas de contradiction avec tout autre document.
 
 ## Conventions de travail
 

@@ -1,0 +1,15 @@
+# Dépendances et caches (le projet n'en a aucune, mais on se protège d'un `npm install` accidentel)
+node_modules/
+npm-debug.log*
+*.log
+
+# Secrets locaux : ne jamais committer
+.env
+.env.*
+
+# Fichiers système / éditeur
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
