@@ -106,3 +106,42 @@
   tables : partie, revanche couleurs inversées, forfait). Vérifié dans Chromium
   à deux joueurs (mat du fou aux doigts, orientation, promotion, nulle).
 - **Pas de chrono** pour l'instant (volontaire : en avion, sans pression).
+
+## 2026-10-02 — Business Class (façon Monopoly) + tables à effectif variable
+- **Nom et contenu** : « Monopoly » est une marque déposée → jeu **« Business
+  Class »**, plateau thème avion (villes, hubs, douane, Cagnotte/Imprévu), textes
+  et noms originaux. Les mécaniques et la structure des prix sont celles du jeu
+  classique (28 titres, 8 groupes, 1 500 de départ, 200 au Décollage).
+- **Extension des tables** (pour 2–6 joueurs) : `autoStart:false` → l'hôte lance
+  (« Démarrer », ≥ `minPlayers`) ; `onLeave` → un départ ne termine pas la partie
+  (le joueur est éliminé, ses biens retournent à la banque) ; revanche entre les
+  joueurs restants (les partis sont retirés, il en faut ≥ `minPlayers`). Les jeux
+  à 2 joueurs gardent exactement leur comportement.
+- **Moteur = machine à phases** (`roll → moving → buy | auction | debt → after`)
+  avec des dés injectables (`rng`) pour des tests déterministes. Le client n'a aucune
+  règle : le serveur lui envoie des `hints` (ce qu'il peut faire maintenant).
+- **Règles implémentées** : doubles (3 = douane), douane (payer 50 / carte / double,
+  3e échec = amende obligatoire), achat, **enchères** (le refuseur enchérit en
+  dernier ; le dernier restant ayant enchéri gagne), loyers (groupe complet nu ×2,
+  maisons/hôtel, hubs 25–200, compagnies 4×/10× les dés), **construction équilibrée**
+  avec stock de la banque (32 maisons / 12 hôtels), revente à moitié prix,
+  hypothèque (+10 % pour lever), cartes (déplacements, hub/compagnie le plus
+  proche, réparations, payer/recevoir de chacun, carte de sortie de douane
+  conservée), **échanges** (argent + titres + cartes), **dettes** (file de
+  paiements : on vend / hypothèque / échange, sinon faillite au profit du créancier),
+  victoire du dernier joueur en lice.
+- **Simplifications assumées** : pas de cagnotte au Salon VIP ; titres hypothéqués
+  non échangeables ; un seul échange en attente à la fois ; pas de minuteur (un joueur
+  hors ligne bloque le jeu jusqu'à son éviction au bout de 5 min, ou départ volontaire).
+- **Interface** : plateau en anneau 11×11 (cases ≈ 32 px : bande de couleur, pions,
+  maisons, propriétaire en liseré) + fiche de la case touchée, zone d'actions,
+  joueurs (toucher = proposer un échange), mes titres (＋/－/hypothèque), échange en
+  fenêtre, journal avec pseudos colorés. Saisies (mise, argent) conservées lors des
+  rafraîchissements du serveur.
+- **Changement transverse** : le bouton 💬 flottant masquait des contenus en jeu →
+  déplacé dans l'**en-tête, désormais fixe** en haut (`body` en `min-height` pour que
+  `sticky` marche). Vibration « à ton tour » seulement au passage à ton tour.
+- **Tests** : 48 nouveaux (moteur avec dés scriptés, tables à effectif variable,
+  **500 parties aléatoires** sans exception avec invariants : maisons/hôtels,
+  cartes, argent ≥ 0, titres de faillis) ; vérifié dans Chromium à 3 joueurs
+  (attente, achat, loyer, enchères, construction, échange, départ).

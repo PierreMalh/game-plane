@@ -166,3 +166,115 @@ test('échecs : abandonner donne la victoire à l’adversaire', () => {
   assert.equal(v.state.winner, 1);
   assert.equal(v.state.reason, 'forfeit');
 });
+
+// ---- jeux à effectif variable (Business Class) ------------------------------------
+
+test('effectif variable : démarrage manuel par l’hôte, 2 joueurs minimum', () => {
+  const { tables, last } = setup(['a', 'b', 'c', 'd']);
+  tables.create('a', 'monopoly');
+  const t = tables.list()[0];
+  assert.equal(t.min, 2);
+  assert.equal(t.max, 6);
+  assert.equal(t.manual, true);
+  assert.equal(tables.start('a').error, 'not-enough');
+
+  tables.join('b', t.id);
+  assert.equal(last('a', 'table').table.status, 'waiting'); // pas de démarrage automatique
+  tables.join('c', t.id);
+  assert.equal(tables.start('b').error, 'not-host');
+  assert.equal(tables.start('zzz').error, 'no-table');
+  assert.equal(tables.start('a').ok, true);
+  const v = last('c', 'table').table;
+  assert.equal(v.status, 'playing');
+  assert.equal(v.me, 2);
+  assert.equal(v.state.players.length, 3);
+  assert.equal(tables.join('d', t.id).error, 'full'); // partie commencée
+  assert.equal(tables.start('a').error, 'no-table'); // déjà lancée
+});
+
+test('start refusé pour un jeu à démarrage automatique ; le puissance 4 démarre toujours plein', () => {
+  const { tables } = setup();
+  tables.create('a', 'connect4');
+  assert.equal(tables.start('a').error, 'auto-start');
+});
+
+test('Business Class : un joueur qui part ne met pas fin à la partie', () => {
+  const { tables, last } = setup();
+  tables.create('a', 'monopoly');
+  const id = tables.list()[0].id;
+  tables.join('b', id); tables.join('c', id);
+  tables.start('a');
+  tables.leave('c');
+  assert.equal(last('c', 'table').table, null);
+  const v = last('a', 'table').table;
+  assert.equal(v.status, 'playing');
+  assert.equal(v.state.players[2].bankrupt, true);
+  assert.equal(v.left.length, 1);
+  assert.equal(tables.leave('b').ok, true); // il ne reste que a : a gagne
+  const end = last('a', 'table').table;
+  assert.equal(end.status, 'over');
+  assert.equal(end.state.winner, 0);
+});
+
+test('Business Class : attente — le départ de l’hôte passe la main, table vide fermée', () => {
+  const { tables, last } = setup();
+  tables.create('a', 'monopoly');
+  const id = tables.list()[0].id;
+  tables.join('b', id);
+  tables.leave('a');
+  assert.equal(tables.list()[0].players[0].id, 'b');
+  assert.equal(tables.start('b').error, 'not-enough');
+  tables.leave('b');
+  assert.equal(tables.list().length, 0);
+  assert.equal(last('b', 'table').table, null);
+});
+
+test('Business Class : revanche entre les joueurs restants, les partis sont retirés', () => {
+  const { tables, last } = setup();
+  tables.create('a', 'monopoly');
+  const id = tables.list()[0].id;
+  tables.join('b', id); tables.join('c', id);
+  tables.start('a');
+  tables.leave('c');
+  tables.leave('b'); // a gagne
+  assert.equal(last('a', 'table').table.status, 'over');
+  assert.equal(tables.rematch('a').error, 'no-rematch'); // seul : moins que minPlayers
+});
+
+test('Business Class : revanche à deux après le départ d’un tiers (les partis sont retirés)', () => {
+  const { games } = require('../server/games');
+  const g = games.get('monopoly');
+  const realInit = g.init;
+  // Partie scriptée : a (le joueur du tour) a 10 en poche et tombera sur la taxe de 200.
+  g.init = (ids, o) => {
+    const st = realInit(ids, { ...o, shuffle: false, rng: (() => { const d = [1, 3]; let i = 0; return () => (d[i++ % 2] - 1) / 6 + 0.01; })() });
+    if (o.first === 0) st.players[0].cash = 10;
+    return st;
+  };
+  try {
+    const { tables, last } = setup();
+    tables.create('a', 'monopoly');
+    const id = tables.list()[0].id;
+    tables.join('b', id); tables.join('c', id);
+    tables.start('a');
+    tables.leave('c');
+    assert.equal(tables.action('a', { type: 'roll' }).ok, true); // 4 : taxe, a est à sec
+    assert.equal(tables.action('a', { type: 'bankrupt' }).ok, true);
+    const over = last('b', 'table').table;
+    assert.equal(over.status, 'over');
+    assert.equal(over.state.winner, 1);
+    assert.equal(over.left.length, 1); // c est parti
+
+    tables.rematch('a');
+    assert.equal(last('a', 'table').table.status, 'over'); // attend b
+    tables.rematch('b');
+    const again = last('a', 'table').table;
+    assert.equal(again.status, 'playing');
+    assert.equal(again.state.players.length, 2); // c a été retiré
+    assert.equal(again.left.length, 0);
+    assert.equal(again.state.turn, 1); // b commence la manche suivante
+    assert.equal(again.me, 0);
+  } finally {
+    g.init = realInit;
+  }
+});
