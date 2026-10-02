@@ -28,7 +28,8 @@
     ul.replaceChildren();
     for (const p of list) {
       const li = document.createElement('li');
-      li.textContent = (p.online ? '● ' : '○ ') + p.name;
+      li.textContent = p.name + (p.id === myId ? ' (toi)' : '');
+      li.title = p.online ? 'En ligne' : 'Hors ligne';
       if (!p.online) li.className = 'off';
       if (p.id === myId) li.classList.add('me');
       else {
@@ -42,7 +43,7 @@
   function showLobby() {
     $('login-box').hidden = true;
     $('lobby').hidden = false;
-    GPChat.open();
+    GPChat.close(); // chat replié : il ne doit pas cacher le salon (bouton 💬 + pastille des non-lus)
   }
 
   function sendJson(obj) {

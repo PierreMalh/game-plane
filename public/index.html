@@ -25,10 +25,19 @@
   button { background: var(--acc); color: #04263a; font-weight: 600; }
   #players { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
   #players li { background: #0b1220; border-radius: 999px; padding: 4px 12px; font-size: .9rem; }
+  #players li::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+                        background: var(--ok); margin-right: 6px; vertical-align: 1px; }
   #players li.off { color: var(--dim); }
+  #players li.off::before { background: #475569; }
   #players li.me { outline: 1px solid var(--acc); }
   #players li.tap { cursor: pointer; }
   .hint { color: var(--dim); font-size: .8rem; margin: 8px 0 0; }
+  .welcome { margin: 0 0 12px; color: var(--dim); }
+  .welcome b { color: var(--txt); }
+  section.hl { outline: 2px solid var(--acc); }
+  #game-list { display: flex; flex-direction: column; gap: 8px; }
+  .game-card b { display: block; }
+  .game-card .hint { margin-top: 2px; }
 
   /* Volet de chat global (lobby et jeux) */
   #chat-toggle { position: relative; width: 40px; height: 40px; border-radius: 50%; font-size: 1.2rem; padding: 0; flex: none; }
@@ -59,9 +68,11 @@
   button.sec { background: #334155; color: var(--txt); }
   button.danger { background: #ef4444; color: #fff; }
   #lobby, #game-view { padding-bottom: 24px; }
-  #gv-title { color: var(--txt); font-size: 1.1rem; margin: 0; }
-  #gv-status { text-align: center; font-weight: 600; margin: 8px 0 12px; min-height: 1.4em; }
-  #gv-watchers { text-align: center; margin: -8px 0 12px; }
+  #gv-head { text-align: center; margin: 4px 0 12px; }
+  #gv-title { color: var(--dim); font-size: .85rem; text-transform: uppercase; letter-spacing: .06em; margin: 0; }
+  #gv-status { font-weight: 700; font-size: 1.1rem; margin: 2px 0 0; min-height: 1.4em; }
+  #gv-watchers { margin: 2px 0 0; }
+  .waiting li.free { color: var(--dim); font-style: italic; background: transparent; border: 1px dashed #334155; }
   #gv-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 16px; }
   #toast { position: fixed; top: calc(12px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 40;
            background: var(--ko); color: #fff; padding: 8px 16px; border-radius: 999px; font-size: .9rem; }
@@ -87,9 +98,10 @@
 </header>
 
 <section id="login-box">
+  <p class="welcome">Des jeux entre amis, <b>sans internet</b>. Choisis un pseudo pour entrer dans le salon.</p>
   <form id="login">
-    <input id="name" placeholder="Ton pseudo" maxlength="20" autocomplete="nickname" required>
-    <button type="submit">Rejoindre</button>
+    <input id="name" placeholder="Ton pseudo" maxlength="20" autocomplete="nickname" enterkeyhint="go" autofocus required>
+    <button type="submit">Entrer</button>
   </form>
 </section>
 
@@ -98,12 +110,8 @@
     <ul id="players"></ul>
     <p class="hint">Touche un joueur pour lui écrire en privé.</p>
   </section>
-  <section>
-    <h2>Jeux</h2>
-    <div id="game-list" style="display:flex;flex-direction:column;gap:8px"></div>
-  </section>
-  <section id="open-tables" hidden>
-    <h2>Parties ouvertes</h2>
+  <section id="open-tables" class="hl" hidden>
+    <h2>Parties ouvertes · rejoins tes amis</h2>
     <ul id="tables"></ul>
   </section>
   <section id="live-tables" hidden>
@@ -111,12 +119,18 @@
     <ul id="live-list"></ul>
     <p class="hint">Regarde une partie sans y jouer (les cartes et mots secrets restent cachés).</p>
   </section>
+  <section>
+    <h2>Nouvelle partie</h2>
+    <div id="game-list"></div>
+  </section>
 </div>
 
 <div id="game-view" hidden>
-  <h2 id="gv-title"></h2>
-  <p id="gv-status"></p>
-  <p id="gv-watchers" class="hint" hidden></p>
+  <div id="gv-head">
+    <h2 id="gv-title"></h2>
+    <p id="gv-status"></p>
+    <p id="gv-watchers" class="hint" hidden></p>
+  </div>
   <div id="gv-body"></div>
   <div id="gv-actions">
     <button id="gv-chat" type="button" class="sec">💬 Chat de la table</button>
