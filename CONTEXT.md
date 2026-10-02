@@ -9,7 +9,7 @@ stores.
 
 ## État actuel
 Salon unique avec liste des joueurs en direct et **chat à canaux** (général,
-privés, salons de jeu) dans un volet global repliable. Jeux : **Puissance 4**.
+privés, salons de jeu) dans un volet global repliable. Jeux : **Puissance 4**, **Échecs**.
 
 ## Chat (important pour les jeux : on ne pourra pas parler dans l'avion)
 - `server/chat.js` : canaux `general`, `dm:<idJoueur>` (privé) et salons créés
@@ -19,7 +19,8 @@ privés, salons de jeu) dans un volet global repliable. Jeux : **Puissance 4**.
 - `public/chat.js` (`GPChat`) : volet réutilisable, aucun travail côté jeu.
 
 ## Stack
-- Node ≥ 18, **zéro dépendance** (rien à `npm install` hors ligne).
+- Node ≥ 18, **zéro dépendance npm** (rien à `npm install` hors ligne). Seule
+  bibliothèque tierce : `chess.js`, copiée dans `server/vendor/` (voir son README).
 - `server/server.js` : HTTP statique + WebSocket, serveur autoritaire.
 - `server/ws.js` : WebSocket RFC 6455 écrit à la main.
 - `public/` : client HTML/JS vanilla, sans ressource externe.

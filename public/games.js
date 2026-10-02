@@ -15,6 +15,11 @@ window.GPGames = (() => {
     'no-table': 'Cette table n’existe plus.',
     'already-seated': 'Tu es déjà à une table.',
     'too-many': 'Trop de tables ouvertes.',
+    'illegal-move': 'Coup impossible.',
+    'promotion-required': 'Choisis la pièce de promotion.',
+    over: 'La partie est terminée.',
+    'already-offered': 'Nulle déjà proposée.',
+    'no-offer': 'Aucune nulle à répondre.',
   };
 
   let send = () => false;

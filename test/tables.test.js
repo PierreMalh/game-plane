@@ -127,3 +127,42 @@ test('joueur définitivement parti : forfait', () => {
   assert.equal(last('a', 'table').table.state.winner, 0);
   tables.playerGone('zzz'); // inconnu : sans effet
 });
+
+test('échecs sur une table : mat, revanche avec couleurs inversées', () => {
+  const { tables, last } = setup();
+  tables.create('a', 'chess');
+  tables.join('b', tables.list()[0].id);
+  const mv = (who, from, to) => tables.action(who, { type: 'move', from, to });
+
+  const v0 = last('a', 'table').table;
+  assert.equal(v0.game, 'chess');
+  assert.equal(v0.state.white, 0);
+  assert.ok(v0.state.legal); // a a le trait
+  assert.equal(last('b', 'table').table.state.legal, null);
+
+  for (const [who, from, to] of [['a', 'f2', 'f3'], ['b', 'e7', 'e5'], ['a', 'g2', 'g4'], ['b', 'd8', 'h4']]) {
+    assert.equal(mv(who, from, to).ok, true);
+  }
+  const over = last('a', 'table').table;
+  assert.equal(over.status, 'over');
+  assert.equal(over.state.winner, 1);
+  assert.equal(mv('a', 'a2', 'a3').error, 'no-game');
+
+  tables.rematch('a'); tables.rematch('b');
+  const again = last('a', 'table').table;
+  assert.equal(again.status, 'playing');
+  assert.equal(again.state.white, 1); // b a maintenant les blancs
+  assert.equal(again.state.legal, null);
+  assert.equal(mv('a', 'e2', 'e4').error, 'not-your-turn');
+  assert.equal(mv('b', 'e2', 'e4').ok, true);
+});
+
+test('échecs : abandonner donne la victoire à l’adversaire', () => {
+  const { tables, last } = setup();
+  tables.create('a', 'chess');
+  tables.join('b', tables.list()[0].id);
+  tables.leave('a');
+  const v = last('b', 'table').table;
+  assert.equal(v.state.winner, 1);
+  assert.equal(v.state.reason, 'forfeit');
+});
