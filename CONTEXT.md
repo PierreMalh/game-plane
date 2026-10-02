@@ -16,7 +16,7 @@ stores.
 Salon unique avec liste des joueurs en direct et **chat à canaux** (général,
 privés, salons de jeu) dans un volet global repliable. Jeux : **Puissance 4**, **Échecs**, **Business Class** (façon Monopoly, 2 à 6 joueurs),
 **Cherche l'imposteur** (façon Undercover, 3 à 8 joueurs),
-jeux de cartes : **Président** (3–6), **8 américain** (2–6), **Menteur** (3–8).
+jeux de cartes : **Président** (3–6), **8 américain** (2–6), **Menteur** (3–8), **Belote** (4, 2 équipes).
 
 ## Chat (important pour les jeux : on ne pourra pas parler dans l'avion)
 - `server/chat.js` : canaux `general`, `dm:<idJoueur>` (privé) et salons créés

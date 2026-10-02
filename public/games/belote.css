@@ -1,0 +1,25 @@
+.bl-scores { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; align-items: stretch; }
+.bl-score, .bl-trump { background: var(--card); border-radius: 12px; padding: 10px; text-align: center; }
+.bl-score.ours { outline: 2px solid var(--acc); }
+.bl-trump { min-width: 78px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+.bl-felt { position: relative; height: 330px; background: #14532d; border-radius: 16px; padding: 8px; }
+.bl-seat { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 8px;
+           background: #0b1220cc; border-radius: 10px; font-size: .85rem; max-width: 44%; text-align: center; }
+.bl-seat i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.bl-seat.ours { border: 1px solid var(--acc); }
+.bl-seat.turn { box-shadow: 0 0 0 3px #fde047; }
+.bl-seat .chips { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; }
+.bl-seat.top { top: 8px; left: 50%; transform: translateX(-50%); }
+.bl-seat.bottom { bottom: 8px; left: 50%; transform: translateX(-50%); }
+.bl-seat.left { left: 6px; top: 50%; transform: translateY(-50%); }
+.bl-seat.right { right: 6px; top: 50%; transform: translateY(-50%); }
+.bl-centre { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); display: flex; flex-direction: column;
+             align-items: center; gap: 4px; color: #fff; }
+.bl-centre .hint { color: #d1fae5; }
+.bl-slots { position: relative; width: 130px; height: 118px; }
+.bl-slot { position: absolute; }
+.bl-slot.top { top: 0; left: 50%; transform: translateX(-50%); }
+.bl-slot.bottom { bottom: 0; left: 50%; transform: translateX(-50%); }
+.bl-slot.left { left: 0; top: 50%; transform: translateY(-50%); }
+.bl-slot.right { right: 0; top: 50%; transform: translateY(-50%); }
+.bl-seat.left, .bl-seat.right { max-width: 27%; font-size: .78rem; }
