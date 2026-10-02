@@ -172,3 +172,33 @@
   aléatoires) ; un test non déterministe (ordre de parole aléatoire) a été repéré et
   corrigé en fixant les rôles. Vérifié dans Chromium à 4 joueurs (refus d'indices,
   chat auto, vote, devinette, révélation, revanche).
+
+## 2026-10-02 — Jeux de cartes : Président, 8 américain, Menteur
+- **Cadre commun** : `server/games/cards/deck.js` (52 cartes codées `rang+couleur`, `shuffle`
+  injectable, `dealAll`, `takeCards`) et côté client `public/cards.js` (`GPCards`) + `cards.css`.
+  Main sur **plusieurs lignes** (pas d'éventail à chevauchement) : cartes de 44 px faciles à
+  toucher ; `U+FE0E` sur les symboles ♥ ♦ ♣ ♠ pour que iOS ne les passe pas en emoji.
+  Mains privées côté serveur, vérifié par tests (aucune carte adverse dans la vue).
+- **Président** (3–6, 3 manches) : ordre 3…A,2 (2 = plus fort) ; 1 à 4 cartes de même rang,
+  rang **strictement** supérieur ; passer = écarté du pli ; un 2 ferme le pli aussitôt ;
+  le dernier à avoir joué ramasse. Rôles (Président / Vice / Neutre / Vice-trou / Trou) et
+  **échange de cartes** à la manche suivante (le Trou donne ses 2 plus fortes, le
+  Président en rend 2 de son choix ; 1 carte pour les vices dès 4 joueurs). Points : n−1
+  pour le 1er … 0. Le client sélectionne tout seul le bon nombre de cartes du même rang.
+  Un départ écarte la main du joueur, la partie continue (fin si 1 seul reste).
+- **8 américain** (2–6) : couleur ou rang ; **8 joker** (choix de la couleur), **2** = +2
+  **cumulable**, **As** fait sauter le suivant, **Valet** inverse le sens (à 2 joueurs : on
+  rejoue). On ne pioche que sans carte jouable ; carte piochée jouable → la poser ou passer.
+  Pioche vide : la défausse (sauf le haut) est remélangée. Cartes d'un joueur parti : sous la pioche.
+- **Menteur** (3–8) : on pose 1 à 4 cartes face cachée en annonçant le rang (A, 2, 3… R, puis
+  on recommence) ; le suivant peut crier « Menteur ! » (cartes retournées à tous : le menteur ou
+  l'accusateur à tort ramasse le tas, l'accusateur rejoue). Dernière carte posée : le suivant
+  doit **trancher** (accuser ou accepter) avant que la victoire soit actée. Le serveur ne
+  renvoie jamais les cartes posées, seulement leur nombre et le rang annoncé.
+- **Simplifications** : pas de minuteur ; pas de « révolution » au Président ; pas de score cumulé
+  au 8 américain / Menteur (une donne = une partie, la revanche relance) ; seul le joueur
+  suivant peut accuser au Menteur (jeu au tour par tour, pas en temps réel).
+- **Tests** : 37 nouveaux (règles, secret des mains, 120 à 150 parties aléatoires par jeu avec
+  conservation des 52 cartes et absence de blocage) + effectifs/démarrage via les tables.
+  Deux défauts trouvés en test et corrigés : « Jouer » proposé sans carte jouable (Président) et
+  place non attribuée à un joueur ayant fini en cours de manche. Vérifié dans Chromium.

@@ -10,7 +10,8 @@ stores.
 ## État actuel
 Salon unique avec liste des joueurs en direct et **chat à canaux** (général,
 privés, salons de jeu) dans un volet global repliable. Jeux : **Puissance 4**, **Échecs**, **Business Class** (façon Monopoly, 2 à 6 joueurs),
-**Cherche l'imposteur** (façon Undercover, 3 à 8 joueurs).
+**Cherche l'imposteur** (façon Undercover, 3 à 8 joueurs),
+jeux de cartes : **Président** (3–6), **8 américain** (2–6), **Menteur** (3–8).
 
 ## Chat (important pour les jeux : on ne pourra pas parler dans l'avion)
 - `server/chat.js` : canaux `general`, `dm:<idJoueur>` (privé) et salons créés
@@ -60,3 +61,9 @@ son hotspot Wi-Fi. Voir `README.md`.
 - **Information cachée** : `view(état, idx)` ne renvoie que ce que `idx` a le droit de
   voir (ex. « Cherche l'imposteur » : son mot seulement ; test de non-fuite dans
   `test/impostor.test.js`). Les mots viennent de `server/games/impostor-words.js`.
+
+- **Jeux de cartes** : `server/games/cards/` (`deck.js` : paquet de 52 codé « rang + couleur »,
+  ex. `10H`, `AS` ; mélange, donne, retrait de cartes) + un moteur par jeu. Client :
+  `public/cards.js` (`GPCards` : carte, dos, main sur plusieurs lignes avec sélection) et
+  `public/cards.css`, partagés ; un fichier `public/games/<jeu>.js` par jeu. Les mains
+  sont **privées** : `view(état, idx)` ne renvoie que la main de `idx`.

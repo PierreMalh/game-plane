@@ -278,3 +278,28 @@ test('Business Class : revanche à deux après le départ d’un tiers (les part
     g.init = realInit;
   }
 });
+
+// ---- jeux de cartes ---------------------------------------------------------------------
+
+test('jeux de cartes : effectifs, démarrage par l’hôte, chaque joueur ne reçoit que sa main', () => {
+  const cases = [['president', 3, 6], ['eights', 2, 6], ['liar', 3, 8]];
+  for (const [game, min, max] of cases) {
+    const { tables, last } = setup(['a', 'b', 'c']);
+    tables.create('a', game);
+    const t = tables.list()[0];
+    assert.deepEqual([t.min, t.max, t.manual], [min, max, true], game);
+    tables.join('b', t.id);
+    if (min === 3) assert.equal(tables.start('a').error, 'not-enough', game);
+    tables.join('c', t.id);
+    assert.equal(tables.start('a').ok, true, game);
+
+    const views = ['a', 'b', 'c'].map((id) => last(id, 'table').table);
+    const hands = views.map((v) => v.state.hand);
+    assert.ok(hands.every((h) => h.length > 0), game);
+    // La main d'un joueur n'apparaît dans la vue d'aucun autre.
+    views.forEach((v, i) => {
+      const json = JSON.stringify(v);
+      hands.forEach((h, j) => { if (j !== i) for (const c of h) assert.equal(json.includes(`"${c}"`), false, `${game} : ${c} fuit vers ${i}`); });
+    });
+  }
+});
