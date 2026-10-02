@@ -123,6 +123,8 @@ voir [Problèmes fréquents](#6-problèmes-fréquents).
   pour lui écrire en privé.
 - **Jeux** : la liste des jeux disponibles, avec un bouton **Créer**.
 - **Parties ouvertes** : les tables en attente de joueurs, avec un bouton **Rejoindre**.
+- **Parties en cours** : les parties déjà lancées, avec un bouton **👁 Regarder** (voir
+  [Regarder une partie](#regarder-une-partie-spectateur)).
 - En haut à droite, le bouton **💬** ouvre le chat ; une pastille rouge indique les messages non lus.
 
 ### Lancer une partie
@@ -146,6 +148,21 @@ voir [Problèmes fréquents](#6-problèmes-fréquents).
 - **Rejouer** : en fin de partie, quand tous les joueurs restants le demandent, une nouvelle
   manche démarre (les couleurs / le premier joueur changent).
 
+### Regarder une partie (spectateur)
+
+Si vous n'êtes assis à aucune table, touchez **👁 Regarder** à côté d'une partie dans
+**Parties en cours** pour la suivre en direct, sans y jouer :
+
+- Vous voyez **ce que tout le monde voit** : le plateau, le pli, les scores, les indices, le
+  journal… mais **jamais les cartes en main ni les mots secrets** (sinon on pourrait souffler
+  les réponses). Aux échecs, les blancs sont en bas ; à la belote, l'équipe 1 est en bas.
+- Vous rejoignez le **💬 chat de la table** (lecture et écriture).
+- Les joueurs voient qui les regarde (« 👁 Regarde : … ») et le salon affiche le nombre de spectateurs.
+- **Arrêter de regarder** vous ramène au salon, sans rien changer à la partie. Vous pouvez aussi
+  passer directement à une autre partie, ou créer votre propre table.
+- Si la table regardée attend encore des joueurs, un bouton **Prendre une place** permet de s'asseoir.
+- Plusieurs spectateurs peuvent regarder la même partie ; on ne regarde qu'une partie à la fois.
+
 ### Le chat
 
 Le chat est un panneau qui se déplie par-dessus l'écran (touchez **▾** pour le replier).
@@ -155,7 +172,7 @@ Plusieurs conversations (onglets) :
 |---|---|
 | **Général** | Tous les joueurs |
 | **🔒 Un pseudo** | Vous et ce joueur uniquement (touchez son nom dans la liste) |
-| **Nom du jeu** | Les joueurs de votre table uniquement |
+| **Nom du jeu** | Les joueurs de votre table (et ses spectateurs) uniquement |
 
 Pour écrire vite sur un petit clavier, des **messages rapides** sont proposés :
 👍 😂 😮 Oui · Non · À toi ! · Prêt ✋.

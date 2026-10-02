@@ -38,6 +38,10 @@
 
   function drawWord(table, s) {
     const box = el('div', 'im-word');
+    if (!s.me) { // spectateur : aucun mot secret (ils sont révélés en fin de partie)
+      box.append(el('div', 'hint', 'Tu regardes la partie : les mots secrets restent cachés.'));
+      return box;
+    }
     box.append(el('div', 'hint', 'Ton mot secret'));
     box.append(el('div', 'im-w', s.me.word));
     if (s.winner === null) {
@@ -150,7 +154,7 @@
           ready.type = 'button';
           ready.addEventListener('click', () => send({ type: 'ready' }));
           row.append(ready);
-        } else if (s.me.alive) {
+        } else if (s.me?.alive) {
           row.append(el('span', 'hint', 'Tu es prêt. En attente des autres…'));
         }
         box.append(row);

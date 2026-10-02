@@ -278,3 +278,29 @@
 - **`CLAUDE.md`** : sections « Projet » et « Commandes » remplies (elles étaient « à compléter »), et retrait
   de la référence au nom d'un autre projet privé dont les règles de travail sont issues.
 - Le `git clone` du README (étape Termux) fonctionnera désormais sans identifiants GitHub.
+
+## 2026-10-02 — Spectateurs
+- **Besoin** : depuis le salon, rejoindre une partie en cours pour la regarder.
+- **Serveur** (`tables.js`) : chaque table a un ensemble `spectators` ; une map `watch` (joueur → table)
+  garantit qu'on ne regarde **qu'une table à la fois** et jamais en étant assis. `table-watch` pour
+  regarder, `table-leave` (déjà existant) pour arrêter. Créer/rejoindre une table arrête de regarder
+  (pas d'erreur à gérer côté client) ; la fermeture d'une table renvoie ses spectateurs au salon ;
+  un spectateur parti pour de bon (balayage des déconnectés) est retiré. On peut regarder une table
+  en attente, en cours ou finie (entre deux revanches, il reste spectateur).
+- **Vue publique uniquement** : le spectateur reçoit `view(état, -1)`. Choix délibéré de **ne pas** lui
+  montrer les mains (façon « télé ») : dans un avion tout le monde est à portée de voix et un
+  spectateur pourrait souffler. Les vues de tous les jeux géraient déjà un index inconnu, sauf la
+  belote (`hands[-1]`) corrigée. Test qui parcourt **tous les jeux enregistrés** : pas de main, pas de
+  mot, aucune action, aucune carte d'une main dans le JSON — un futur jeu est couvert d'office.
+- **Chat** : le spectateur entre dans le canal `table:<id>` (lecture et écriture : sans voix, c'est
+  le seul moyen d'encourager) et en sort à son départ (`chat.removeMember`, nouveau). Il ne voit rien
+  de plus que la vue publique, donc il n'a rien à divulguer.
+- **Client** : section « Parties en cours » avec **👁 Regarder** (nombre de spectateurs affiché) ;
+  vue de partie avec « · 👁 spectateur » dans le titre, liste « 👁 Regarde : … » visible des joueurs,
+  bouton « Arrêter de regarder » (sans confirmation), pas de revanche, « Prendre une place » sur une
+  table en attente. `table.me = -1` : chaque jeu évite les « Tu… » (abandon aux échecs / Puissance 4),
+  oriente la vue sur un point fixe (blancs en bas, équipe 1 en bas à la belote, « Équipe 1 / 2 » au
+  lieu de « Nous / Eux »), masque « Mes titres » à Business Class et le mot secret à l'imposteur.
+- **Tests** : 10 nouveaux (`test/spectators.test.js`). Vérifié dans Chromium : spectateur de chaque jeu,
+  aucune erreur JS, aucun bouton d'action actif (à Business Class, seules les cases du plateau restent
+  touchables, pour afficher leur fiche).

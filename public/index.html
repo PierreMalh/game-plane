@@ -53,14 +53,15 @@
   #chat-quick button { background: #0b1220; color: var(--txt); padding: 6px 12px; font-weight: 400; white-space: nowrap; }
   #chat-form { display: flex; gap: 8px; margin-top: 4px; }
   h2 { font-size: .95rem; margin: 0 0 8px; color: var(--dim); font-weight: 600; }
-  .game-card, #tables li { display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  .game-card, #tables li, #live-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px;
                            background: #0b1220; border-radius: 10px; padding: 10px 12px; }
-  #tables { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+  #tables, #live-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
   button.sec { background: #334155; color: var(--txt); }
   button.danger { background: #ef4444; color: #fff; }
   #lobby, #game-view { padding-bottom: 24px; }
   #gv-title { color: var(--txt); font-size: 1.1rem; margin: 0; }
   #gv-status { text-align: center; font-weight: 600; margin: 8px 0 12px; min-height: 1.4em; }
+  #gv-watchers { text-align: center; margin: -8px 0 12px; }
   #gv-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 16px; }
   #toast { position: fixed; top: calc(12px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 40;
            background: var(--ko); color: #fff; padding: 8px 16px; border-radius: 999px; font-size: .9rem; }
@@ -105,11 +106,17 @@
     <h2>Parties ouvertes</h2>
     <ul id="tables"></ul>
   </section>
+  <section id="live-tables" hidden>
+    <h2>Parties en cours</h2>
+    <ul id="live-list"></ul>
+    <p class="hint">Regarde une partie sans y jouer (les cartes et mots secrets restent cachés).</p>
+  </section>
 </div>
 
 <div id="game-view" hidden>
   <h2 id="gv-title"></h2>
   <p id="gv-status"></p>
+  <p id="gv-watchers" class="hint" hidden></p>
   <div id="gv-body"></div>
   <div id="gv-actions">
     <button id="gv-chat" type="button" class="sec">💬 Chat de la table</button>
