@@ -334,3 +334,22 @@ test('belote : démarre toute seule à 4 ; partir fait gagner l’équipe advers
   assert.equal(end.left.length, 1);
   assert.equal(tables.rematch('a').error, 'no-rematch'); // à 3, impossible de rejouer
 });
+
+test('belote contrée : mêmes règles de table que la belote (4 joueurs, démarrage automatique)', () => {
+  const { tables, last } = setup(['a', 'b', 'c', 'd']);
+  tables.create('a', 'coinche');
+  const t = tables.list()[0];
+  assert.deepEqual([t.min, t.max, t.manual, t.gameName], [4, 4, false, 'Belote contrée']);
+  for (const id of ['b', 'c', 'd']) tables.join(id, t.id);
+  const v = last('a', 'table').table;
+  assert.equal(v.status, 'playing');
+  assert.equal(v.state.mode, 'coinche');
+  assert.equal(v.state.hand.length, 8); // 8 cartes dès la donne
+  assert.equal(v.state.phase, 'bid');
+  // Le premier à parler peut annoncer ; un autre est refusé.
+  const first = v.state.turn;
+  const ids = ['a', 'b', 'c', 'd'];
+  assert.equal(tables.action(ids[(first + 1) % 4], { type: 'bid', value: 80, suit: 'H' }).error, 'not-your-turn');
+  assert.equal(tables.action(ids[first], { type: 'bid', value: 80, suit: 'H' }).ok, true);
+  assert.deepEqual(last(ids[(first + 1) % 4], 'table').table.state.bid, { p: first, value: 80, suit: 'H' });
+});

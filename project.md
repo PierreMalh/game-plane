@@ -240,3 +240,30 @@
   complètes aléatoires** (cartes conservées, comptage cohérent : 162 + belote ou 252 + belote à chaque donne, jamais
   de joueur sans action possible). Vérifié dans Chromium à 4 joueurs (enchères 2 tours, redonne, donne complète de
   32 cartes, scores « Nous/Eux » cohérents entre partenaires et adversaires, donne suivante).
+
+## 2026-10-02 — Annonces et belote contrée
+- **Refonte du moteur** : la belote devient `belote-engine.js` avec deux modes (`classic`, `coinche`) ;
+  `belote.js` et `coinche.js` sont de fines enveloppes. Jeu de la carte, belote-rebelote et annonces sont
+  communs ; seuls diffèrent la donne, les enchères et le barème. Tous les tests de la belote existants
+  sont restés verts sans modification de leurs attentes (hors cartes d'annonce révélées, cf. ci-dessous).
+- **Annonces** (les deux modes) : tierce 20, cinquante 50, cent 100 (suite de 5 ou plus), carrés (valets 200,
+  9 150, as/10/rois/dames 100 ; 8 et 7 : rien). **Déclarées automatiquement** à la 1re carte jouée par chaque
+  joueur (comme la belote-rebelote : moins de manipulation à l'écran et pas d'oubli possible) ; seul le **type**
+  est public à ce moment. Après le 1er pli, la meilleure annonce de chaque équipe est comparée (carré > cent >
+  cinquante > tierce, puis hauteur, puis atout, puis premier joueur) ; l'équipe gagnante marque **toutes** ses
+  annonces et **ses cartes sont révélées**, l'autre rien. Perdues si elles sont celles d'un preneur qui chute.
+  Conséquence testée : un test de confidentialité a dû exclure ces cartes révélées (règle du jeu, pas une fuite).
+- **Belote contrée** (jeu séparé « Belote contrée », en 1000) : 8 cartes d'emblée, enchères chiffrées (80…160,
+  Capot) + couleur d'atout, surenchère stricte, on peut ré-enchérir après avoir passé, fin après 3 passes
+  suivant une annonce (4 passes sans annonce : redonne). **Contre** par un adversaire du dernier annonceur à son
+  tour, **surcontre** (×4) décidé par le seul annonceur.
+- **Barème de la contrée** (choix documentés dans le README) : rempli → valeur du contrat + points réalisés (cartes,
+  10 de der, belote) pour les preneurs, leurs points pour les défenseurs ; chuté → 160 + contrat aux défenseurs ;
+  contré/surcontré → tout ou rien, (160 + contrat) × 2 ou × 4 ; belote jamais multipliée et toujours acquise ;
+  annonces ajoutées sans multiplication ; capot annoncé = 250 + 252, capot non annoncé = 252 réalisés. Le contrat
+  ne tient pas compte des annonces mais compte la belote. **Hors périmètre** : générale, sans-atout, tout-atout.
+- **Équipes** : toujours l'ordre d'arrivée (1er+3e / 2e+4e), comme à la belote classique.
+- **Tests** : 37 nouveaux (détection des annonces, comparaison, hiérarchie, égalités, perte si chute ; enchères de la
+  contrée, contre/surcontre, tous les cas du barème à la main) + **150 parties aléatoires de contrée** dont chaque
+  donne est comparée à un **calcul de points écrit indépendamment** du moteur. Vérifié dans Chromium à 4 joueurs
+  (enchères, contre, surcontre ×4, affichage d'une tierce révélée).

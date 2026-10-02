@@ -359,14 +359,16 @@ test('parties aléatoires : cartes conservées, donne toujours jouable, comptage
       assert.ok(seen.every((c) => deck.has(c)));
       for (let i = 0; i < 4; i++) {
         const json = JSON.stringify(g.view(st, i));
-        st.hands.forEach((hand, j) => { if (j !== i) for (const c of hand) assert.equal(json.includes(`"${c}"`), false, `seed ${seed} : ${c} fuit`); });
+        // Les cartes d'une annonce qui marque sont révélées à tous après le 1er pli (règle du jeu).
+        const shown = new Set((st.announce ? st.announce.combos : []).flatMap((c) => c.cards));
+        st.hands.forEach((hand, j) => { if (j !== i) for (const c of hand) if (!shown.has(c)) assert.equal(json.includes(`"${c}"`), false, `seed ${seed} : ${c} fuit`); });
       }
       if (st.phase === 'roundover' || (st.phase === 'over' && st.result)) {
         const r = st.result;
         const bel = r.belote !== null ? 20 : 0;
-        const total = r.add[0] + r.add[1];
+        const total = r.add[0] + r.add[1] - (r.announce ? r.announce.counted : 0); // hors annonces
         if (r.capot !== null) assert.equal(total, 252 + bel, `seed ${seed} : capot`);
-        else assert.equal(total, r.made ? 162 + bel : 162 + bel, `seed ${seed} : total ${total}`);
+        else assert.equal(total, 162 + bel, `seed ${seed} : total ${total}`);
         rounds++;
       }
     }
