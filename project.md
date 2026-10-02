@@ -321,3 +321,36 @@ Audit par captures d'écran à 390 px de large (taille d'un téléphone) de chaq
   « d'un adversaire » pour les jeux à plus de 2.
 - **En-tête de partie** : nom du jeu en petit surtitre, statut (« À toi de jouer ») en gros et centré : l'info
   utile passe en premier.
+
+## 2026-10-02 — Poker (Texas Hold'em)
+- **Variante** : Texas Hold'em **sans limite**, la plus connue et la plus simple à expliquer à table. 2 à
+  8 joueurs (au-delà, plus assez de cartes pour une lecture confortable sur téléphone), lancé par l'hôte.
+- **Format tournoi** plutôt que « cash game » : sans argent réel, il faut une fin. 1000 jetons chacun,
+  blindes 10/20 qui **doublent toutes les 10 mains** (≈ 50 grosses blindes au départ : assez pour jouer,
+  et une partie qui tient dans un vol). Le dernier avec des jetons gagne ; la revanche relance un tournoi.
+- **Règles d'enchères officielles** implémentées car elles changent le résultat : relance minimale égale
+  à la dernière relance ; **tapis incomplet** qui ne rouvre pas les relances pour qui a déjà parlé
+  (drapeaux `needsAct` / `mayRaise` par joueur) ; tête-à-tête où le bouton est petite blinde. Montant
+  d'une relance exprimé en **mise totale du tour** (« relancer à 60 »), comme en tournoi.
+- **Pots annexes** calculés à la fin par couches de mise totale (`contrib`) : chaque niveau forme un pot
+  dont seuls les joueurs non couchés ayant misé au moins ce niveau sont éligibles. La mise non suivie
+  revient d'elle-même à son auteur (pot dont il est seul éligible). Partage à égalité, jeton
+  indivisible au premier gagnant à gauche du bouton.
+- **Évaluateur** : meilleure main de 5 parmi 7 (21 combinaisons, largement assez rapide), score
+  `[catégorie, départages…]` comparé lexicographiquement ; quinte blanche A-2-3-4-5 gérée.
+- **Fin de main** : pas d'enchaînement automatique, chaque joueur en lice touche « Main suivante »
+  (comme la « Donne suivante » de la belote) pour avoir le temps de voir l'abattage. Les éliminés et
+  les partis n'ont pas à valider. Toutes les mains en jeu sont montrées à l'abattage (pas de « muck » :
+  plus simple et pédagogique) ; un joueur qui gagne parce que tout le monde se couche ne montre rien.
+- **Départ en cours** (`onLeave`) : le joueur se couche, ses mises restent au pot, ses jetons sortent
+  du jeu ; le tournoi continue tant qu'il reste deux joueurs.
+- **Interface** : tapis vert avec les 5 emplacements du tableau, jetons et mise de chacun, bouton « D »,
+  curseur de relance + raccourcis *Min*, *½ pot*, *Pot* (relance « au pot » : pot après avoir suivi),
+  *Tapis*. Le client ne connaît aucune règle : `hints` donne les actions, le montant à suivre et les
+  bornes de relance.
+- **Tests** : 19 (`test/poker.test.js`) : catégories et départages, donne et blindes, tête-à-tête, secret
+  des mains, relance minimale, tapis incomplet, pots annexes, mise non suivie rendue, partage et jeton
+  indivisible, élimination, blindes croissantes, départ en cours, et **300 tournois aléatoires** (2 à 8
+  joueurs) vérifiant à chaque action la conservation des jetons et l'unicité des cartes. Le test
+  spectateur générique couvre aussi le poker. Vérifié dans Chromium à 3 joueurs + 1 spectateur
+  (relance au pot, abattage, main suivante, rotation du bouton), aucune erreur JS.

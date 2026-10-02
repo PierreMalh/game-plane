@@ -9,8 +9,8 @@ ouvrent une adresse dans leur navigateur. Rien à installer pour eux.
 > 📶 **Pas de Bluetooth** : un navigateur ne peut pas communiquer en Bluetooth avec un autre
 > téléphone. Tout passe par le **Wi-Fi local** du téléphone de l'hôte, qui marche très bien sans internet.
 
-**9 jeux** : Puissance 4 · Échecs · Business Class (façon Monopoly) · Cherche l'imposteur ·
-Président · 8 américain · Menteur · Belote · Belote contrée — avec un **chat intégré** (indispensable quand on ne peut pas parler).
+**10 jeux** : Puissance 4 · Échecs · Business Class (façon Monopoly) · Cherche l'imposteur ·
+Président · 8 américain · Menteur · Belote · Belote contrée · Poker — avec un **chat intégré** (indispensable quand on ne peut pas parler).
 
 ## Sommaire
 
@@ -199,6 +199,7 @@ conversation sont conservés ; on peut envoyer au plus 8 messages toutes les 5 s
 | [Menteur](#menteur) | 3 à 8 | par l'hôte de la table |
 | [Belote](#belote) | 4 (2 équipes) | automatique |
 | [Belote contrée](#belote-contrée) | 4 (2 équipes) | automatique |
+| [Poker](#poker) | 2 à 8 | par l'hôte de la table |
 
 > Aucun jeu n'a de chronomètre : prenez votre temps, ou pressez gentiment vos amis via le chat 😉.
 
@@ -408,6 +409,32 @@ La partie s'arrête quand une équipe atteint **1000 points** (la plus haute gag
 
 Ce qui n'est **pas** géré : la « générale » (un seul joueur fait tous les plis), le « sans atout » et le
 « tout atout ».
+
+### Poker
+
+Le **Texas Hold'em sans limite** (*No-Limit*), en **tournoi** : chacun part avec **1000 jetons**, le
+dernier à avoir des jetons gagne. Pas d'argent réel, bien sûr.
+
+- **Blindes** : la petite et la grosse blinde (**10 / 20** au départ) sont posées d'office par les deux
+  joueurs à gauche du **bouton** (« D », le donneur, qui tourne à chaque main). Elles **doublent
+  toutes les 10 mains** pour que le tournoi se termine avant l'atterrissage. À deux joueurs, le
+  bouton est petite blinde et parle en premier avant le flop.
+- **Une main** : 2 cartes privées chacun, un tour d'enchères, puis le **flop** (3 cartes communes),
+  la **turn** (1 carte) et la **river** (1 carte), chacun suivi d'un tour d'enchères.
+- **À votre tour** : **se coucher**, **parole** (*check*, s'il n'y a rien à payer), **suivre**, ou
+  **relancer** (curseur ou raccourcis *Min*, *½ pot*, *Pot*, *Tapis*). Le montant affiché est la mise
+  totale du tour. Une relance doit être au moins égale à la précédente (au moins la grosse blinde).
+  Un **tapis** plus petit qu'une relance complète ne permet pas à ceux qui ont déjà parlé de relancer.
+- **Abattage** : la **meilleure combinaison de 5 cartes** parmi vos 2 cartes et les 5 du tableau
+  gagne. Toutes les mains encore en jeu sont montrées. Si tout le monde se couche, le dernier
+  ramasse sans montrer.
+- **Combinaisons**, de la plus forte à la plus faible : quinte flush, carré, full, couleur, quinte
+  (l'As compte aussi pour 1 : A-2-3-4-5), brelan, double paire, paire, hauteur. À égalité, les
+  cartes restantes départagent ; égalité parfaite : le pot est partagé.
+- **Tapis et pots annexes** : un joueur à tapis ne peut gagner que ce qu'il a pu couvrir chez
+  chacun ; le reste forme un pot annexe joué entre les autres. C'est calculé automatiquement.
+- Après chaque main, chacun touche **Main suivante** (on a le temps de regarder les cartes).
+- **Quitter** en cours de tournoi : vous vous couchez et vos jetons sortent du jeu ; les autres continuent.
 
 ---
 
