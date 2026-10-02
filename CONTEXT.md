@@ -2,6 +2,11 @@
 
 Point d'entrée de reprise rapide. `project.md` détaille le « pourquoi ».
 
+## Documentation
+- `README.md` : **documentation utilisateur** (préparer le vol, lancer, utiliser l'appli, règles de
+  chaque jeu, dépannage, limites) + notes dev. **À mettre à jour à chaque nouveau jeu ou
+  changement visible** (liste des jeux, règles, tableaux d'effectifs).
+
 ## But
 Page web ouverte sur téléphone pour jouer entre amis dans l'avion, sans
 internet. iPhone et Android mélangés, pas de Mac, pas de publication sur les

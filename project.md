@@ -202,3 +202,16 @@
   conservation des 52 cartes et absence de blocage) + effectifs/démarrage via les tables.
   Deux défauts trouvés en test et corrigés : « Jouer » proposé sans carte jouable (Président) et
   place non attribuée à un joueur ayant fini en cours de manche. Vérifié dans Chromium.
+
+## 2026-10-02 — Documentation utilisateur (README)
+- Le README devient la **doc utilisateur** pour des joueurs non techniques : matériel (hôte Android +
+  Termux), préparation au sol (`git pull` avant le vol, test à faire), lancement en avion
+  (mode avion + Wi-Fi + hotspot, `npm start`, adresse à communiquer), prise en main de l'appli
+  (lobby, tables, démarrage par l'hôte, chat à onglets, revanche, abandon), **règles de chacun
+  des 7 jeux**, dépannage (adresse, port occupé, reconnexion, partie « bloquée ») et limites.
+- **Pourquoi ces choix** : une section « Pas de Bluetooth » en tête (c'était l'idée de départ, mais
+  impossible depuis un navigateur → Wi-Fi local) ; une section « Limites » franche (état en mémoire
+  perdu si Termux s'arrête, pas de chrono, pas de chiffrement) pour que personne ne soit surpris en vol.
+- **Vérifié** : chiffres relevés dans le code (effectifs par jeu, 20 lettres de pseudo, 8 messages
+  / 5 s, 200 messages d'historique, 5 min de reprise, 30 tables), liens internes du sommaire
+  contrôlés, messages du serveur (« prêt sur le port », « Impossible de démarrer ») testés.
