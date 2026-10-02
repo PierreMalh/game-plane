@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<title>Game Plane</title>
+<style>
+  :root { --bg:#0f172a; --card:#1e293b; --txt:#f1f5f9; --dim:#94a3b8; --acc:#38bdf8; --ok:#4ade80; --ko:#f87171; }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--txt); font: 16px/1.4 system-ui, sans-serif;
+         display: flex; flex-direction: column; padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom); }
+  header { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; }
+  h1 { font-size: 1.1rem; margin: 0; }
+  #status { font-size: .85rem; color: var(--dim); }
+  #status.ok { color: var(--ok); } #status.ko { color: var(--ko); }
+  section { background: var(--card); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+  #login { display: flex; gap: 8px; }
+  input, button { font: inherit; border-radius: 8px; border: 0; padding: 12px; }
+  input { flex: 1; min-width: 0; background: #0b1220; color: var(--txt); }
+  button { background: var(--acc); color: #04263a; font-weight: 600; }
+  #players { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+  #players li { background: #0b1220; border-radius: 999px; padding: 4px 12px; font-size: .9rem; }
+  #players li.off { color: var(--dim); }
+  #players li.me { outline: 1px solid var(--acc); }
+  #chat { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  #log { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+  #log p { margin: 0; word-break: break-word; }
+  #log b { color: var(--acc); }
+  #send { display: flex; gap: 8px; margin-top: 8px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<header>
+  <h1>✈️ Game Plane</h1>
+  <span id="status" class="ko">Connexion…</span>
+</header>
+
+<section id="login-box">
+  <form id="login">
+    <input id="name" placeholder="Ton pseudo" maxlength="20" autocomplete="nickname" required>
+    <button type="submit">Rejoindre</button>
+  </form>
+</section>
+
+<div id="lobby" hidden style="display:flex;flex-direction:column;flex:1;min-height:0">
+  <section><ul id="players"></ul></section>
+  <section id="chat">
+    <div id="log"></div>
+    <form id="send">
+      <input id="text" placeholder="Message de test…" maxlength="500" autocomplete="off">
+      <button type="submit">Envoyer</button>
+    </form>
+  </section>
+</div>
+
+<script src="client.js"></script>
+</body>
+</html>

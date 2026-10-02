@@ -1,0 +1,11 @@
+{
+  "name": "game-plane",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Jeux multijoueur sur téléphone via un serveur local, sans internet",
+  "scripts": {
+    "start": "node server/server.js",
+    "test": "node --test test/*.test.js"
+  },
+  "engines": { "node": ">=18" }
+}
