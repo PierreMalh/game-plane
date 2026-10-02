@@ -267,3 +267,14 @@
   contrée, contre/surcontre, tous les cas du barème à la main) + **150 parties aléatoires de contrée** dont chaque
   donne est comparée à un **calcul de points écrit indépendamment** du moteur. Vérifié dans Chromium à 4 joueurs
   (enchères, contre, surcontre ×4, affichage d'une tierce révélée).
+
+## 2026-10-02 — Préparation au passage du dépôt en public
+- **Audit de tout l'historique** (23 commits, aucun fichier supprimé en route) : aucune clé, aucun jeton,
+  aucun mot de passe, aucun `.env`, aucune IP ou adresse personnelle. Les auteurs sont l'adresse
+  `noreply` GitHub et `noreply@anthropic.com` ; seules IP présentes : `127.0.0.1` (tests) et `192.168.43.1`
+  (exemple générique de hotspot Android). Pas de réécriture d'historique nécessaire.
+- **`.gitignore`** ajouté (`node_modules/`, `.env*`, journaux, fichiers d'éditeur) pour qu'un secret local ou
+  un `npm install` accidentel ne soit jamais commité une fois le dépôt public.
+- **`CLAUDE.md`** : sections « Projet » et « Commandes » remplies (elles étaient « à compléter »), et retrait
+  de la référence au nom d'un autre projet privé dont les règles de travail sont issues.
+- Le `git clone` du README (étape Termux) fonctionnera désormais sans identifiants GitHub.
