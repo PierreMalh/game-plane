@@ -9,7 +9,7 @@ stores.
 
 ## État actuel
 Salon unique avec liste des joueurs en direct et **chat à canaux** (général,
-privés, salons de jeu) dans un volet global repliable. Jeux : **Puissance 4**, **Échecs**.
+privés, salons de jeu) dans un volet global repliable. Jeux : **Puissance 4**, **Échecs**, **Business Class** (façon Monopoly, 2 à 6 joueurs).
 
 ## Chat (important pour les jeux : on ne pourra pas parler dans l'avion)
 - `server/chat.js` : canaux `general`, `dm:<idJoueur>` (privé) et salons créés
@@ -44,3 +44,14 @@ son hotspot Wi-Fi. Voir `README.md`.
   render })`) + CSS du jeu.
 - **Ajouter un jeu** = un fichier serveur, un fichier client, deux lignes
   d'enregistrement ; lobby, tables, chat et reconnexion sont déjà gérés.
+
+- **Effectif variable** : un jeu avec `autoStart: false` (min < max) est lancé par
+  l'hôte (bouton « Démarrer »), et peut définir `onLeave(état, idx)` pour qu'un
+  départ en cours de partie n'y mette pas fin (sinon : forfait).
+- **Business Class** : `server/games/monopoly/` (moteur `index.js`, cartes
+  `cards.js`) ; les données du plateau sont dans `public/games/monopoly-board.js`
+  (module UMD) **partagé** par le serveur (`require`) et le navigateur (`<script>`).
+  Le client ne connaît aucune règle : il reçoit l'état et des `hints` (actions,
+  constructions, hypothèques, enchères possibles).
+- Parties de test déterministes : `game.init(ids, { rng, shuffle:false })`
+  (dés scriptés, voir `test/monopoly.test.js`).

@@ -91,6 +91,8 @@ function createApp({ offlineTtlMs = OFFLINE_TTL_MS, heartbeatMs = HEARTBEAT_MS }
       reply(conn, tables.create(state.player.id, msg.game));
     } else if (msg.type === 'table-join') {
       reply(conn, tables.join(state.player.id, msg.table));
+    } else if (msg.type === 'table-start') {
+      reply(conn, tables.start(state.player.id));
     } else if (msg.type === 'table-leave') {
       tables.leave(state.player.id);
     } else if (msg.type === 'table-rematch') {

@@ -8,10 +8,13 @@
 <style>
   :root { --bg:#0f172a; --card:#1e293b; --txt:#f1f5f9; --dim:#94a3b8; --acc:#38bdf8; --ok:#4ade80; --ko:#f87171; }
   * { box-sizing: border-box; }
-  html, body { height: 100%; margin: 0; }
+  html { height: 100%; }
+  body { min-height: 100%; margin: 0; }
   body { background: var(--bg); color: var(--txt); font: 16px/1.4 system-ui, sans-serif;
          display: flex; flex-direction: column; padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom); }
-  header { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; }
+  header { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; position: sticky; top: 0;
+           background: var(--bg); z-index: 25; }
+  #hstatus { display: flex; align-items: center; gap: 10px; }
   h1 { font-size: 1.1rem; margin: 0; }
   #status { font-size: .85rem; color: var(--dim); }
   #status.ok { color: var(--ok); } #status.ko { color: var(--ko); }
@@ -28,10 +31,9 @@
   .hint { color: var(--dim); font-size: .8rem; margin: 8px 0 0; }
 
   /* Volet de chat global (lobby et jeux) */
-  #chat-toggle { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom)); z-index: 20;
-                 width: 56px; height: 56px; border-radius: 50%; font-size: 1.5rem; padding: 0; box-shadow: 0 4px 12px #0008; }
+  #chat-toggle { position: relative; width: 40px; height: 40px; border-radius: 50%; font-size: 1.2rem; padding: 0; flex: none; }
   #chat-badge { position: absolute; top: -4px; right: -4px; background: var(--ko); color: #fff; font-size: .75rem;
-                min-width: 20px; height: 20px; line-height: 20px; border-radius: 10px; padding: 0 5px; }
+                min-width: 18px; height: 18px; line-height: 18px; border-radius: 9px; padding: 0 4px; font-size: .7rem; }
   #chat-panel { position: fixed; left: 0; right: 0; bottom: 0; height: 60dvh; z-index: 30; background: var(--card);
                 border-radius: 16px 16px 0 0; box-shadow: 0 -4px 16px #0009; display: flex; flex-direction: column;
                 padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); }
@@ -55,21 +57,28 @@
                            background: #0b1220; border-radius: 10px; padding: 10px 12px; }
   #tables { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
   button.sec { background: #334155; color: var(--txt); }
-  #lobby, #game-view { padding-bottom: 90px; }
+  #lobby, #game-view { padding-bottom: 24px; }
   #gv-title { color: var(--txt); font-size: 1.1rem; margin: 0; }
   #gv-status { text-align: center; font-weight: 600; margin: 8px 0 12px; min-height: 1.4em; }
   #gv-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 16px; }
   #toast { position: fixed; top: calc(12px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 40;
            background: var(--ko); color: #fff; padding: 8px 16px; border-radius: 999px; font-size: .9rem; }
+  .waiting { list-style: none; margin: 0 auto; padding: 0; display: flex; flex-direction: column; gap: 6px; max-width: 320px; }
+  .waiting li { background: #0b1220; border-radius: 10px; padding: 10px 14px; }
+  button:disabled { opacity: .45; }
   [hidden] { display: none !important; }
 </style>
 <link rel="stylesheet" href="games/connect4.css">
 <link rel="stylesheet" href="games/chess.css">
+<link rel="stylesheet" href="games/monopoly.css">
 </head>
 <body>
 <header>
   <h1>✈️ Game Plane</h1>
-  <span id="status" class="ko">Connexion…</span>
+  <span id="hstatus">
+    <span id="status" class="ko">Connexion…</span>
+    <button id="chat-toggle" type="button" aria-label="Ouvrir le chat" hidden>💬<span id="chat-badge" hidden>0</span></button>
+  </span>
 </header>
 
 <section id="login-box">
@@ -107,7 +116,6 @@
 
 <div id="toast" hidden></div>
 
-<button id="chat-toggle" type="button" aria-label="Ouvrir le chat" hidden>💬<span id="chat-badge" hidden>0</span></button>
 <aside id="chat-panel" hidden>
   <div id="chat-head">
     <div id="chat-tabs"></div>
@@ -126,6 +134,8 @@
 <script src="games.js"></script>
 <script src="games/connect4.js"></script>
 <script src="games/chess.js"></script>
+<script src="games/monopoly-board.js"></script>
+<script src="games/monopoly.js"></script>
 <script src="client.js"></script>
 </body>
 </html>

@@ -1,7 +1,9 @@
 'use strict';
-// Tables de jeu : un joueur crée une table, les autres la rejoignent ; la
-// partie démarre quand elle est pleine. Un joueur n'est que sur une table à la
-// fois. Chaque table a son canal de chat privé « table:<id> ».
+// Tables de jeu : un joueur crée une table, les autres la rejoignent. La partie
+// démarre quand elle est pleine ; pour un jeu à effectif variable
+// (autoStart === false), l'hôte (premier assis) la lance dès qu'il y a
+// minPlayers joueurs. Un joueur n'est que sur une table à la fois. Chaque table
+// a son canal de chat privé « table:<id> ».
 
 const crypto = require('crypto');
 const { games } = require('./games');
@@ -28,7 +30,9 @@ function createTables({ players, chat, broadcast }) {
       game: t.game,
       gameName: g.name,
       status: t.status,
+      min: g.minPlayers,
       max: g.maxPlayers,
+      manual: g.autoStart === false, // l'hôte lance la partie
       players: t.players.map((id) => ({ id, name: nameOf(id) })),
     };
   }
@@ -90,7 +94,8 @@ function createTables({ players, chat, broadcast }) {
     t.players.push(pid);
     seat.set(pid, t.id);
     chat.addMember(chatId(t), pid);
-    if (t.players.length >= g.maxPlayers) startRound(t);
+    // Jeu à démarrage automatique : on lance dès que la table est pleine.
+    if (g.autoStart !== false && t.players.length >= g.maxPlayers) startRound(t);
     pushTable(t);
     pushList();
     return { ok: true };
@@ -98,9 +103,25 @@ function createTables({ players, chat, broadcast }) {
 
   const seated = (t) => t.players.filter((id) => seat.get(id) === t.id);
 
-  // Quitter. Attente : on libère la place. Partie en cours : forfait (l'adversaire
-  // gagne). Partie finie : on part simplement. Table vide → fermée.
-  // Les joueurs partis restent dans t.players pour garder des index de vue stables.
+  // Lancement manuel par l'hôte (premier assis) d'un jeu à effectif variable.
+  function start(pid) {
+    const t = tables.get(seat.get(pid));
+    if (!t || t.status !== 'waiting') return { ok: false, error: 'no-table' };
+    const g = games.get(t.game);
+    if (g.autoStart !== false) return { ok: false, error: 'auto-start' };
+    if (t.players[0] !== pid) return { ok: false, error: 'not-host' };
+    if (t.players.length < g.minPlayers) return { ok: false, error: 'not-enough' };
+    startRound(t);
+    pushTable(t);
+    pushList();
+    return { ok: true };
+  }
+
+  // Quitter. Attente : on libère la place. Partie en cours : si le jeu sait gérer
+  // un départ (onLeave, ex. faillite au Monopoly) la partie continue, sinon c'est
+  // un forfait (l'adversaire gagne). Partie finie : on part simplement. Table
+  // vide → fermée. Les joueurs partis restent dans t.players pour garder des
+  // index de vue stables.
   function leave(pid) {
     const t = tables.get(seat.get(pid));
     if (!t) return { ok: false, error: 'not-seated' };
@@ -109,10 +130,15 @@ function createTables({ players, chat, broadcast }) {
     if (t.status === 'waiting') {
       t.players = t.players.filter((id) => id !== pid);
     } else if (t.status === 'playing' && !g.isOver(t.state)) {
-      const winner = t.players.find((id) => id !== pid && seat.get(id) === t.id);
-      t.state.winner = winner === undefined ? 'draw' : t.players.indexOf(winner);
-      t.state.forfeit = true;
-      t.status = 'over';
+      if (g.onLeave) {
+        g.onLeave(t.state, t.players.indexOf(pid));
+        if (g.isOver(t.state)) t.status = 'over';
+      } else {
+        const winner = t.players.find((id) => id !== pid && seat.get(id) === t.id);
+        t.state.winner = winner === undefined ? 'draw' : t.players.indexOf(winner);
+        t.state.forfeit = true;
+        t.status = 'over';
+      }
     }
     seat.delete(pid);
     sendTo(pid, { type: 'table', table: null });
@@ -135,13 +161,22 @@ function createTables({ players, chat, broadcast }) {
     return res;
   }
 
-  // Revanche : démarre quand tous les joueurs (encore présents) la demandent.
+  // Revanche : démarre quand tous les joueurs encore présents la demandent. Jeu à
+  // effectif fixe : impossible si quelqu'un est parti. Effectif variable : les
+  // partis sont retirés, il faut rester au moins minPlayers.
   function rematch(pid) {
     const t = tables.get(seat.get(pid));
-    if (!t || t.status !== 'over' || seated(t).length < t.players.length) return { ok: false, error: 'no-rematch' };
+    if (!t || t.status !== 'over') return { ok: false, error: 'no-rematch' };
+    const g = games.get(t.game);
+    const present = seated(t);
+    const fixed = g.minPlayers === g.maxPlayers;
+    if (present.length < g.minPlayers || (fixed && present.length < t.players.length)) {
+      return { ok: false, error: 'no-rematch' };
+    }
     t.rematch.add(t.players.indexOf(pid));
-    if (t.rematch.size >= t.players.length) {
-      t.first = games.get(t.game).nextFirst(t.state, t.first);
+    if (present.every((id) => t.rematch.has(t.players.indexOf(id)))) {
+      t.first = g.nextFirst(t.state, t.first);
+      t.players = present;
       startRound(t);
       pushList();
     }
@@ -154,7 +189,7 @@ function createTables({ players, chat, broadcast }) {
     if (seat.has(pid)) leave(pid);
   }
 
-  return { create, join, leave, action, rematch, playerGone, list, viewFor };
+  return { create, join, start, leave, action, rematch, playerGone, list, viewFor };
 }
 
 module.exports = { createTables };
