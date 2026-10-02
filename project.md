@@ -304,3 +304,20 @@
 - **Tests** : 10 nouveaux (`test/spectators.test.js`). Vérifié dans Chromium : spectateur de chaque jeu,
   aucune erreur JS, aucun bouton d'action actif (à Business Class, seules les cases du plateau restent
   touchables, pour afficher leur fiche).
+
+## 2026-10-02 — Coup de propre sur l'interface
+Audit par captures d'écran à 390 px de large (taille d'un téléphone) de chaque écran, puis corrections :
+- **Salon réordonné** : « Parties ouvertes » (encadrée en bleu) puis « Parties en cours » passent **au-dessus**
+  de la liste des jeux, renommée « Nouvelle partie ». Avant, avec 9 jeux, les tables à rejoindre étaient sous
+  la ligne de flottaison : un joueur arrivant ne voyait pas la partie de ses amis.
+- **Chat replié à l'arrivée** : il s'ouvrait par-dessus le salon (60 % de l'écran) et cachait les jeux. Le
+  bouton 💬 et sa pastille de non-lus suffisent à le trouver.
+- **Écran d'accueil** : une phrase d'explication, bouton « Entrer » (au lieu de « Rejoindre », déjà utilisé
+  pour les tables), focus automatique sur le pseudo.
+- **Joueurs** : pastille verte / grise en CSS au lieu des caractères ●/○, « (toi) » sur son propre nom.
+- **Salle d'attente** : places libres en pointillé, nombre de joueurs encore nécessaires (« encore 1 pour
+  démarrer ») au lieu d'un bouton grisé sans explication, rappel « les autres rejoignent depuis Parties
+  ouvertes », « Démarrer à N » (corrige « 1 joueurs ») ; « En attente des autres joueurs… » au lieu
+  « d'un adversaire » pour les jeux à plus de 2.
+- **En-tête de partie** : nom du jeu en petit surtitre, statut (« À toi de jouer ») en gros et centré : l'info
+  utile passe en premier.

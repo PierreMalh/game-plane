@@ -34,6 +34,8 @@ window.GPGames = (() => {
   let lastMyTurn = false;
   let toastTimer = null;
 
+  const plural = (n) => (n > 1 ? 's' : '');
+
   function register(def) { registry.set(def.id, def); renderLobby(); }
 
   function toast(text) {
@@ -60,6 +62,7 @@ window.GPGames = (() => {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.textContent = 'Créer';
+      btn.setAttribute('aria-label', `Créer une partie de ${def.name}`);
       btn.addEventListener('click', () => send({ type: 'table-create', game: def.id }));
       card.append(info, btn);
       list.append(card);
@@ -104,11 +107,28 @@ window.GPGames = (() => {
       li.textContent = p.name + (i === 0 ? ' (hôte)' : '') + (i === table.me ? ' — toi' : '');
       ul.append(li);
     });
+    // Places encore libres (jusqu'au minimum, ou toutes pour un jeu à effectif fixe).
+    const shown = table.manual ? Math.max(table.min, table.players.length + 1) : table.max;
+    for (let i = table.players.length; i < Math.min(shown, table.max); i++) {
+      const li = document.createElement('li');
+      li.className = 'free';
+      li.textContent = 'Place libre';
+      ul.append(li);
+    }
     const count = document.createElement('p');
     count.className = 'hint';
     count.style.textAlign = 'center';
-    count.textContent = `${table.players.length} / ${table.max} joueurs`;
+    const missing = table.min - table.players.length;
+    count.textContent = table.min === table.max
+      ? `${table.players.length} / ${table.max} joueurs · la partie démarre dès que la table est pleine`
+      : `${table.players.length} joueur${plural(table.players.length)} (${table.min} à ${table.max})`
+        + (missing > 0 ? ` · encore ${missing} pour démarrer` : '');
+    const how = document.createElement('p');
+    how.className = 'hint';
+    how.style.textAlign = 'center';
+    how.textContent = 'Les autres rejoignent depuis « Parties ouvertes » dans le salon.';
     body.append(ul, count);
+    if (!table.spectator) body.append(how);
     // Spectateur d'une table en attente : il peut prendre une place libre.
     if (table.spectator && table.players.length < table.max) {
       const btn = document.createElement('button');
@@ -122,7 +142,7 @@ window.GPGames = (() => {
     if (table.manual && table.me === 0) {
       const btn = document.createElement('button');
       btn.type = 'button';
-      btn.textContent = `Démarrer (${table.players.length} joueurs)`;
+      btn.textContent = `Démarrer à ${table.players.length}`;
       btn.disabled = table.players.length < table.min;
       btn.style.display = 'block';
       btn.style.margin = '12px auto 0';
@@ -154,7 +174,7 @@ window.GPGames = (() => {
     } else if (table.status === 'waiting') {
       status = table.manual
         ? (table.me === 0 ? 'Lance la partie quand tout le monde est là.' : `${table.players[0].name} lancera la partie…`)
-        : 'En attente d’un adversaire…';
+        : (table.max > 2 ? 'En attente des autres joueurs…' : 'En attente d’un adversaire…');
     } else {
       status = def ? def.status(table) : '';
     }

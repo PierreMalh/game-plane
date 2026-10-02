@@ -105,7 +105,7 @@ réglages Android.
    (sur iPhone, choisissez de **garder** la connexion si on vous le propose).
 3. Ouvrez Safari ou Chrome et tapez l'adresse donnée par l'hôte, par exemple
    `http://192.168.43.1:8080`. Écrivez bien `http://` (pas de `https`).
-4. Entrez votre **pseudo** (20 lettres maximum) et touchez **Rejoindre**.
+4. Entrez votre **pseudo** (20 lettres maximum) et touchez **Entrer**.
 
 Bonne nouvelle : si votre navigateur se ferme ou se recharge, vous n'avez pas à tout refaire —
 voir [Problèmes fréquents](#6-problèmes-fréquents).
@@ -119,13 +119,17 @@ voir [Problèmes fréquents](#6-problèmes-fréquents).
 
 ### L'écran d'accueil (le « lobby »)
 
-- En haut : **la liste des joueurs connectés** (● en ligne, ○ hors ligne). Touchez un joueur
+De haut en bas :
+
+- **La liste des joueurs** (pastille verte : en ligne, grise : hors ligne). Touchez un joueur
   pour lui écrire en privé.
-- **Jeux** : la liste des jeux disponibles, avec un bouton **Créer**.
-- **Parties ouvertes** : les tables en attente de joueurs, avec un bouton **Rejoindre**.
+- **Parties ouvertes** (encadré bleu, seulement s'il y en a) : les tables en attente de joueurs,
+  avec un bouton **Rejoindre**.
 - **Parties en cours** : les parties déjà lancées, avec un bouton **👁 Regarder** (voir
   [Regarder une partie](#regarder-une-partie-spectateur)).
-- En haut à droite, le bouton **💬** ouvre le chat ; une pastille rouge indique les messages non lus.
+- **Nouvelle partie** : la liste des jeux disponibles, avec un bouton **Créer**.
+- En haut à droite, le bouton **💬** ouvre le chat (replié à l'arrivée) ; une pastille rouge
+  indique les messages non lus.
 
 ### Lancer une partie
 
@@ -134,7 +138,8 @@ voir [Problèmes fréquents](#6-problèmes-fréquents).
 3. **Jeux à effectif fixe** (Puissance 4 et Échecs à 2, Belote et Belote contrée à 4) : la partie démarre toute seule
    dès que la table est pleine.
    **Autres jeux** : le créateur de la table (« l'hôte de la table ») voit un bouton
-   **Démarrer (N joueurs)** et lance la partie quand tout le monde est là.
+   **Démarrer à N** et lance la partie quand tout le monde est là (la salle d'attente indique
+   combien de joueurs manquent encore pour atteindre le minimum).
 4. On ne peut être que **sur une table à la fois**.
 
 ### Pendant la partie
