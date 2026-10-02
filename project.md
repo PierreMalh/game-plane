@@ -77,3 +77,32 @@
 - **Tests** : 18 nouveaux (règles, tables, WebSocket) ; vérifié dans Chromium
   avec 3 joueurs (création, partie, rechargement en cours de partie, victoire,
   revanche, chat de table, abandon).
+
+## 2026-10-02 — Échecs (chess.js)
+- **Règles = chess.js 1.4.0**, copié tel quel dans `server/vendor/` (BSD-2, un
+  seul fichier CJS sans dépendance, README + licence à côté) plutôt que
+  réécrites : roque, prise en passant, promotion, pat, nulles sont déjà éprouvés.
+  Ça n'entame pas le « zéro `npm install` » : le fichier est dans le dépôt.
+- **chess.js reste côté serveur uniquement.** `games/chess.js` adapte la
+  bibliothèque au contrat des jeux ; le client reçoit le FEN, le dernier coup,
+  l'historique SAN et `legal` ({ case: [cibles] }, rempli seulement pour celui
+  dont c'est le tour). Le client n'a donc aucune règle, juste du dessin.
+- **Couleurs** : `white` = index du joueur blanc ; il alterne à chaque revanche
+  (`nextFirst`). L'échiquier est retourné pour les noirs.
+- **Promotion** : le serveur répond `promotion-required` sans pièce choisie ;
+  le client détecte « pion qui atteint la dernière rangée » et affiche un
+  sélecteur (dame/tour/fou/cavalier).
+- **Nulles** : automatiques (pat, matériel insuffisant, triple répétition,
+  règle des 50 coups — sans réclamation, pour simplifier) + **par accord**.
+  Une proposition reste valable jusqu'à la réponse ; seul le coup de
+  l'adversaire la refuse implicitement. Proposer quand l'adversaire a déjà
+  proposé vaut acceptation. Abandon = forfait, comme au puissance 4.
+- **Affichage** : pièces en caractères Unicode (aucune image, donc hors ligne
+  sans coût) ; `U+FE0E` après chaque glyphe pour empêcher iOS d'afficher le pion
+  ♟ en emoji ; case du roi en échec, dernier coup, cases possibles et
+  captures en surbrillance ; coordonnées discrètes sur les bords.
+- **Tests** : 15 nouveaux (règles : mats, tour, coups illégaux, promotion,
+  roque, en passant, pat, matériel, répétition, 50 coups, nulle par accord ;
+  tables : partie, revanche couleurs inversées, forfait). Vérifié dans Chromium
+  à deux joueurs (mat du fou aux doigts, orientation, promotion, nulle).
+- **Pas de chrono** pour l'instant (volontaire : en avion, sans pression).

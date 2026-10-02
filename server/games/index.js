@@ -8,6 +8,6 @@
 // Pour ajouter un jeu : un fichier ici + son rendu dans public/games/.
 
 const games = new Map();
-for (const g of [require('./connect4')]) games.set(g.id, g);
+for (const g of [require('./connect4'), require('./chess')]) games.set(g.id, g);
 
 module.exports = { games };
