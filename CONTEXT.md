@@ -9,7 +9,8 @@ stores.
 
 ## État actuel
 Salon unique avec liste des joueurs en direct et **chat à canaux** (général,
-privés, salons de jeu) dans un volet global repliable. Jeux : **Puissance 4**, **Échecs**, **Business Class** (façon Monopoly, 2 à 6 joueurs).
+privés, salons de jeu) dans un volet global repliable. Jeux : **Puissance 4**, **Échecs**, **Business Class** (façon Monopoly, 2 à 6 joueurs),
+**Cherche l'imposteur** (façon Undercover, 3 à 8 joueurs).
 
 ## Chat (important pour les jeux : on ne pourra pas parler dans l'avion)
 - `server/chat.js` : canaux `general`, `dm:<idJoueur>` (privé) et salons créés
@@ -55,3 +56,7 @@ son hotspot Wi-Fi. Voir `README.md`.
   constructions, hypothèques, enchères possibles).
 - Parties de test déterministes : `game.init(ids, { rng, shuffle:false })`
   (dés scriptés, voir `test/monopoly.test.js`).
+
+- **Information cachée** : `view(état, idx)` ne renvoie que ce que `idx` a le droit de
+  voir (ex. « Cherche l'imposteur » : son mot seulement ; test de non-fuite dans
+  `test/impostor.test.js`). Les mots viennent de `server/games/impostor-words.js`.
