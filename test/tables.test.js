@@ -303,3 +303,34 @@ test('jeux de cartes : effectifs, démarrage par l’hôte, chaque joueur ne re�
     });
   }
 });
+
+// ---- Belote : 4 joueurs fixes, démarrage automatique ------------------------------------------------
+
+test('belote : démarre toute seule à 4 ; partir fait gagner l’équipe adverse ; pas de revanche à 3', () => {
+  const { tables, last } = setup(['a', 'b', 'c', 'd']);
+  tables.create('a', 'belote');
+  const t = tables.list()[0];
+  assert.deepEqual([t.min, t.max, t.manual], [4, 4, false]);
+  tables.join('b', t.id); tables.join('c', t.id);
+  assert.equal(last('a', 'table').table.status, 'waiting');
+  tables.join('d', t.id);
+  const v = last('a', 'table').table;
+  assert.equal(v.status, 'playing'); // pas de bouton « Démarrer » : la table est pleine
+  assert.equal(v.state.hand.length, 5);
+  assert.equal(v.me, 0);
+  assert.equal(last('c', 'table').table.me, 2); // 0 et 2 sont partenaires
+
+  // Chaque joueur ne voit que sa main.
+  const hands = ['a', 'b', 'c', 'd'].map((id) => last(id, 'table').table.state.hand);
+  ['a', 'b', 'c', 'd'].forEach((id, i) => {
+    const json = JSON.stringify(last(id, 'table').table);
+    hands.forEach((h, j) => { if (j !== i) for (const c of h) assert.equal(json.includes(`"${c}"`), false); });
+  });
+
+  tables.leave('c'); // un joueur de l'équipe 0 part → l'équipe 1 gagne
+  const end = last('a', 'table').table;
+  assert.equal(end.status, 'over');
+  assert.equal(end.state.winnerTeam, 1);
+  assert.equal(end.left.length, 1);
+  assert.equal(tables.rematch('a').error, 'no-rematch'); // à 3, impossible de rejouer
+});

@@ -9,8 +9,8 @@ ouvrent une adresse dans leur navigateur. Rien à installer pour eux.
 > 📶 **Pas de Bluetooth** : un navigateur ne peut pas communiquer en Bluetooth avec un autre
 > téléphone. Tout passe par le **Wi-Fi local** du téléphone de l'hôte, qui marche très bien sans internet.
 
-**7 jeux** : Puissance 4 · Échecs · Business Class (façon Monopoly) · Cherche l'imposteur ·
-Président · 8 américain · Menteur — avec un **chat intégré** (indispensable quand on ne peut pas parler).
+**8 jeux** : Puissance 4 · Échecs · Business Class (façon Monopoly) · Cherche l'imposteur ·
+Président · 8 américain · Menteur · Belote — avec un **chat intégré** (indispensable quand on ne peut pas parler).
 
 ## Sommaire
 
@@ -129,8 +129,8 @@ voir [Problèmes fréquents](#6-problèmes-fréquents).
 
 1. Un joueur touche **Créer** à côté du jeu choisi : une table s'ouvre.
 2. Les autres la voient dans **Parties ouvertes** et touchent **Rejoindre**.
-3. **Jeux à 2 joueurs** (Puissance 4, Échecs) : la partie démarre toute seule dès que le
-   second joueur arrive.
+3. **Jeux à effectif fixe** (Puissance 4 et Échecs à 2, Belote à 4) : la partie démarre toute seule
+   dès que la table est pleine.
    **Autres jeux** : le créateur de la table (« l'hôte de la table ») voit un bouton
    **Démarrer (N joueurs)** et lance la partie quand tout le monde est là.
 4. On ne peut être que **sur une table à la fois**.
@@ -140,7 +140,8 @@ voir [Problèmes fréquents](#6-problèmes-fréquents).
 - Le titre indique **à qui c'est de jouer** ; votre téléphone **vibre** quand c'est à vous
   (sur Android ; l'iPhone ne vibre pas).
 - **💬 Chat de la table** : une conversation réservée aux joueurs de la table.
-- **Abandonner / Quitter** : à 2 joueurs, abandonner donne la victoire à l'adversaire.
+- **Abandonner / Quitter** : à 2 joueurs, abandonner donne la victoire à l'adversaire (à la belote,
+  c'est l'équipe adverse qui gagne, car on ne peut pas jouer à 3).
   Dans les jeux à plusieurs, vous êtes simplement retiré de la partie qui continue sans vous.
 - **Rejouer** : en fin de partie, quand tous les joueurs restants le demandent, une nouvelle
   manche démarre (les couleurs / le premier joueur changent).
@@ -174,6 +175,7 @@ conversation sont conservés ; on peut envoyer au plus 8 messages toutes les 5 s
 | [Président](#président) | 3 à 6 | par l'hôte de la table |
 | [8 américain](#8-américain) | 2 à 6 | par l'hôte de la table |
 | [Menteur](#menteur) | 3 à 8 | par l'hôte de la table |
+| [Belote](#belote) | 4 (2 équipes) | automatique |
 
 > Aucun jeu n'a de chronomètre : prenez votre temps, ou pressez gentiment vos amis via le chat 😉.
 
@@ -292,6 +294,44 @@ Soyez le premier à vous débarrasser de toutes vos cartes… **en trichant s'il
 
 Le chat est votre meilleur ami : bluffez, devinez, accusez.
 
+### Belote
+
+La belote **classique** à 4 joueurs, en **2 équipes de 2**. Partie en **501 points**.
+
+**Les équipes** sont décidées par l'ordre d'arrivée à la table : le **1ᵉʳ et le 3ᵉ** sont partenaires,
+le **2ᵉ et le 4ᵉ** aussi. Pour choisir vos équipes, rejoignez la table dans le bon ordre. À l'écran,
+**vous êtes en bas, votre partenaire en face** ; on joue dans le sens inverse des aiguilles d'une
+montre (le joueur suivant est à votre droite). Les scores sont affichés « Nous » / « Eux ».
+Le chat de la table est ouvert à tous : convenez de ne pas vous passer d'informations avec votre partenaire 😉.
+
+**1. La prise (les enchères).** Chacun reçoit 5 cartes, et une carte est **retournée**.
+- **Tour 1** : chacun son tour peut **prendre à la couleur de la carte retournée** (cette couleur
+  devient l'**atout**), ou passer.
+- **Tour 2** (si tout le monde a passé) : on peut prendre à **n'importe quelle autre couleur**.
+- Si tout le monde repasse : nouvelle donne, un autre joueur distribue.
+- Le **preneur** reçoit la carte retournée et 2 cartes ; les autres 3 : **8 cartes chacun**.
+
+**2. Le jeu** : 8 plis. Le joueur à gauche du donneur entame. Touchez une carte pour la sélectionner
+(les cartes interdites sont grisées), puis **Jouer la carte**. Le pli est gagné par l'**atout le plus
+fort**, sinon par la plus forte carte de la couleur demandée. Le gagnant entame le pli suivant.
+- On doit **fournir** la couleur demandée.
+- **Atout demandé** : on doit fournir de l'atout et **monter** (jouer plus fort) si on le peut.
+- **Sans la couleur demandée** : on doit **couper** (jouer atout) si on en a, et **surcouper** si un
+  adversaire a déjà coupé ; si on ne peut pas surcouper, on joue quand même un atout.
+  **Exception : si votre partenaire est maître du pli, vous pouvez vous défausser librement.**
+
+**3. Les points** (à l'atout / hors atout) : **Valet 20 / 2** · **9 : 14 / 0** · **As 11** · **10 : 10** ·
+**Roi 4** · **Dame 3** · 8 et 7 : 0. Ordre de force à l'atout : V, 9, As, 10, Roi, Dame, 8, 7 ;
+hors atout : As, 10, Roi, Dame, Valet, 9, 8, 7. Une donne vaut **162 points** (152 de cartes +
+**10 de der** pour le dernier pli).
+- **Belote-rebelote** : roi et dame d'atout dans la même main → **+20**, annoncés automatiquement
+  quand vous posez la seconde carte. Ces 20 points restent acquis même si le contrat chute.
+- **Contrat** : l'équipe qui a pris doit marquer **au moins 82 points** (belote comprise). Sinon elle
+  **chute** : elle marque 0 et les adversaires 162.
+- **Capot** : une équipe qui fait **les 8 plis** marque **252**.
+
+Ce qui n'est **pas** (encore) géré : les annonces de suites (tierce, cinquante, cent, carrés) et la contrée.
+
 ---
 
 ## 6. Problèmes fréquents
@@ -354,7 +394,7 @@ branchez l'hôte si possible.
   WebSocket écrit à la main, client en JavaScript pur. Seule bibliothèque tierce :
   `chess.js`, copiée dans `server/vendor/`.
 - **Lancer sur un ordinateur** : `npm start`, puis ouvrir l'adresse affichée (ou `http://localhost:8080`).
-- **Tests** : `npm test` (plus de 160 tests : règles de chaque jeu, secret des mains,
+- **Tests** : `npm test` (près de 200 tests : règles de chaque jeu, secret des mains,
   centaines de parties aléatoires, WebSocket).
 - **Ajouter un jeu** : un fichier moteur dans `server/games/` (logique pure), un fichier
   d'affichage dans `public/games/`, et l'enregistrer dans `server/games/index.js` et

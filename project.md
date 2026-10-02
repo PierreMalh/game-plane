@@ -215,3 +215,28 @@
 - **Vérifié** : chiffres relevés dans le code (effectifs par jeu, 20 lettres de pseudo, 8 messages
   / 5 s, 200 messages d'historique, 5 min de reprise, 30 tables), liens internes du sommaire
   contrôlés, messages du serveur (« prêt sur le port », « Impossible de démarrer ») testés.
+
+## 2026-10-02 — Belote (classique, 4 joueurs, 2 équipes)
+- **Variante retenue** : belote classique en **501**, sans annonces de suites (tierce/cinquante/
+  cent/carrés) ni contrée — les règles de base d'abord, les annonces pourront s'ajouter. Documenté
+  dans le README (« ce qui n'est pas géré »).
+- **Équipes** = ordre d'arrivée à la table (sièges 0 et 2 contre 1 et 3, partenaires face à face). Pas
+  d'écran de choix d'équipe : à documenter plutôt qu'à coder, on rejoint dans le bon ordre. Table à effectif
+  **fixe (4)** : démarrage automatique quand elle est pleine ; un départ fait gagner l'équipe adverse ; pas de
+  revanche à 3 (règle déjà en place pour les jeux à effectif fixe).
+- **Donne et prise** : 3+2 cartes, carte retournée, tour 1 (couleur retournée) puis tour 2 (autre couleur) ;
+  tous passent deux fois → redonne, le donneur change. Le preneur reçoit la retournée + 2 cartes (8 chacun).
+- **Obligations de jeu** (le point délicat, testé cas par cas) : fournir ; à l'atout, monter si possible ;
+  sans la couleur, couper et **surcouper**, **sous-couper** quand on ne peut pas surcouper, sauf si le
+  **partenaire est maître** (libre) ; fournir la couleur dispense de surcouper.
+- **Comptage** : 152 + 10 de der = 162 ; contrat à **82** (belote comprise dans les 82) ; chute = 0 pour les
+  preneurs et 162 pour les défenseurs, **belote toujours acquise** à qui la détient ; **capot** = 252 ; les 81/81
+  « litige » sont traités comme une chute (pas de report de points). Belote-rebelote annoncée **automatiquement**
+  (le serveur sait qui détient R+D d'atout).
+- **UI** : table vue de dessus (toi en bas, partenaire en face, sens anti-horaire comme en France), pli au
+  centre, carte retournée pendant les enchères, dernier pli, décompte détaillé en fin de donne ; main triée
+  (atout d'abord, couleurs alternées noir/rouge) ; cartes interdites grisées.
+- **Tests** : 23 nouveaux dont les obligations de jeu (≈ 15 situations), tous les cas de comptage, et **150 parties
+  complètes aléatoires** (cartes conservées, comptage cohérent : 162 + belote ou 252 + belote à chaque donne, jamais
+  de joueur sans action possible). Vérifié dans Chromium à 4 joueurs (enchères 2 tours, redonne, donne complète de
+  32 cartes, scores « Nous/Eux » cohérents entre partenaires et adversaires, donne suivante).
