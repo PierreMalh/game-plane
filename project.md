@@ -354,3 +354,38 @@ Audit par captures d'écran à 390 px de large (taille d'un téléphone) de chaq
   joueurs) vérifiant à chaque action la conservation des jetons et l'unicité des cartes. Le test
   spectateur générique couvre aussi le poker. Vérifié dans Chromium à 3 joueurs + 1 spectateur
   (relance au pot, abattage, main suivante, rotation du bouton), aucune erreur JS.
+
+## 2026-10-03 — Jeu de cartes personnalisé
+- **Besoin** : remplacer chaque carte (et le dos) par une photo envoyée depuis un téléphone, l'image
+  étant conservée **sur l'hôte**, dans le projet.
+- **Stockage** : dossier `custom-cards/` à la racine, un fichier `<clé>.<ext>` par carte (`AS.jpg`,
+  `back.png`). Hors de `public/` pour ne jamais servir autre chose que les 53 clés connues ; contenu
+  ignoré par git (propre à chaque hôte, et des photos de vacances n'ont rien à faire dans le dépôt).
+  Le dossier est **relu au démarrage** : contrairement aux parties, le jeu personnalisé survit à un
+  redémarrage de Termux. Écriture atomique (fichier temporaire + renommage).
+- **Envoi en HTTP** (`PUT /api/cards/<clé>`, corps brut) plutôt que par WebSocket : notre `ws.js`
+  n'est pas fait pour de gros messages binaires, et `fetch` + `Blob` marche partout. **Pas de
+  multipart** à parser : une requête = une image. Format reconnu à la **signature** des octets
+  (PNG, JPEG, GIF, WebP), pas au Content-Type ; 2 Mo max (413 au-delà).
+- **Réduction côté navigateur** : canvas → JPEG 0,85, grand côté 400 px (une carte fait ~44 × 62 px,
+  ×2–3 pour les écrans haute densité). Une photo de 4 Mo devient ~30 Ko : envoi instantané sur le
+  hotspot et 53 images légères à charger pour chaque joueur. Fond blanc sous les PNG transparents.
+  Si le navigateur ne sait pas décoder le fichier (HEIC sur ordinateur), on tente l'envoi brut et
+  le serveur refuse proprement.
+- **Cache** : chaque image a une version (horodatage, strictement croissante) ; l'URL
+  `/custom-cards/<clé>?v=<version>` est servie `immutable`, le changement de version suffit à
+  invalider. La liste `{ clé: version }` arrive dans `welcome` et est **diffusée à tous** à chaque
+  changement (`card-skin`) : la partie en cours est redessinée aussitôt (`GPGames.refresh()`).
+- **Affichage** : l'image couvre la carte (`object-fit: cover`) ; rang et couleur dessinés restent
+  dans le DOM (masqués) pour l'accessibilité et réapparaissent si l'image ne charge pas. Aucun jeu
+  n'a eu à changer : tout passe par `GPCards.face` / `GPCards.back`.
+- **Éditeur** : section repliable dans le salon (pour ne pas charger 53 images à l'arrivée), grille
+  par couleur ; toucher une carte ouvre le sélecteur de photos, ✕ la remet d'origine, bouton pour tout
+  rétablir (avec confirmation). Champ fichier masqué sans `display:none` (Safari iOS).
+- **Droits** : tout joueur sur le hotspot peut modifier le jeu (entre amis, pas de rôle d'hôte dans
+  l'appli) ; documenté dans les limites du README.
+- **Tests** : 6 (`test/card-skin.test.js`) : envoi, service, diffusion et accueil d'un nouveau joueur,
+  remplacement avec changement de format, retrait unitaire et total, refus (clé inconnue, non-image,
+  trop lourd, chemins piégés), relecture du dossier au démarrage. Vérifié dans Chromium à 390 px :
+  envoi de l'as de pique et du dos, affichage chez l'autre joueur en partie de 8 américain, retour au
+  jeu d'origine diffusé, aucune erreur JS.

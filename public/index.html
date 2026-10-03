@@ -124,6 +124,17 @@
     <h2>Nouvelle partie</h2>
     <div id="game-list"></div>
   </section>
+  <section>
+    <details id="deck">
+      <summary>🃏 Jeu de cartes personnalisé <span id="deck-count" class="hint"></span></summary>
+      <p class="hint">Touche une carte pour choisir sa photo. Elle est enregistrée sur le téléphone hôte et
+        utilisée par tout le monde dans les jeux de cartes. ✕ : revenir à la carte d'origine.</p>
+      <div id="deck-grid"></div>
+      <p id="deck-msg" class="hint" aria-live="polite"></p>
+      <button id="deck-reset-all" type="button" class="sec" hidden>Revenir au jeu d'origine</button>
+      <input id="deck-file" type="file" accept="image/*" class="visually-hidden" tabindex="-1" aria-hidden="true">
+    </details>
+  </section>
 </div>
 
 <div id="game-view" hidden>
@@ -164,6 +175,7 @@
 <script src="games/monopoly.js"></script>
 <script src="games/impostor.js"></script>
 <script src="cards.js"></script>
+<script src="deck-editor.js"></script>
 <script src="games/president.js"></script>
 <script src="games/eights.js"></script>
 <script src="games/liar.js"></script>

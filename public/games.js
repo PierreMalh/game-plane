@@ -237,5 +237,5 @@ window.GPGames = (() => {
     renderLobby();
   }
 
-  return { register, init, setTable, setTables, onMessage };
+  return { register, init, setTable, setTables, onMessage, refresh: () => { if (table) renderGame(); } };
 })();

@@ -13,3 +13,6 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+# Visuels de cartes envoyés depuis l'appli (un fichier par carte) : propres à chaque hôte
+custom-cards/*
+!custom-cards/README.md

@@ -2,6 +2,8 @@
 // Composant de cartes réutilisable par les jeux de cartes : dessin d'une carte, d'un
 // dos, d'une main sur plusieurs lignes avec sélection, et petits outils d'interface.
 // Une carte est un code « rang + couleur » : "10H", "AS", "2C" (C ♣, D ♦, H ♥, S ♠).
+// Jeu personnalisé : si l'hôte a reçu une image pour une carte (ou pour le dos), elle
+// remplace le dessin ; setSkin({ clé: version }) est appelé à la connexion et à chaque envoi.
 
 window.GPCards = (() => {
   // U+FE0E force l'affichage « texte » : sinon iOS dessine ♥ ♦ en emoji.
@@ -10,6 +12,9 @@ window.GPCards = (() => {
   const RANK_NAME = { A: 'As', J: 'Valet', Q: 'Dame', K: 'Roi' };
   const RANK_NAME_PL = { A: 'As', J: 'Valets', Q: 'Dames', K: 'Rois' };
   const COLORS = ['#ef4444', '#3b82f6', '#22c55e', '#eab308', '#a855f7', '#f97316', '#14b8a6', '#ec4899'];
+
+  let skin = {};
+  const skinUrl = (key) => (skin[key] ? `/custom-cards/${encodeURIComponent(key)}?v=${skin[key]}` : null);
 
   const rankOf = (c) => c.slice(0, -1);
   const suitOf = (c) => c.slice(-1);
@@ -30,10 +35,30 @@ window.GPCards = (() => {
     node.dataset.code = code;
     node.setAttribute('aria-label', `${rankName(rankOf(code))} de ${SUIT_NAME[s]}`);
     node.append(el('span', 'r', rankOf(code)), el('span', 'su', SYM[s]), el('span', 'big', SYM[s]));
+    addImage(node, code);
     return node;
   }
 
-  const back = (small) => el('div', 'card back' + (small ? ' small' : ''));
+  function back(small) {
+    const node = el('div', 'card back' + (small ? ' small' : ''));
+    addImage(node, 'back');
+    return node;
+  }
+
+  // Image perso par-dessus le dessin d'origine, qui réapparaît si elle ne se charge pas.
+  function addImage(node, key) {
+    const url = skinUrl(key);
+    if (!url) return;
+    const img = el('img', 'skin');
+    img.alt = '';
+    img.draggable = false;
+    img.addEventListener('error', () => { img.remove(); node.classList.remove('custom'); });
+    img.src = url;
+    node.classList.add('custom');
+    node.append(img);
+  }
+
+  const setSkin = (map) => { skin = map && typeof map === 'object' ? { ...map } : {}; };
 
   // Main d'un joueur : cartes sur plusieurs lignes (pas de chevauchement, faciles à toucher).
   //   opts.selected : Set de cartes levées ; opts.enabled : Set de cartes jouables (null = toutes)
@@ -53,7 +78,7 @@ window.GPCards = (() => {
   }
 
   return {
-    SYM, SUIT_NAME, rankOf, suitOf, rankName, face, back, hand,
+    SYM, SUIT_NAME, rankOf, suitOf, rankName, face, back, hand, setSkin, hasSkin: (key) => !!skin[key],
     ui: { el, color: (i) => COLORS[i % COLORS.length], nm: (table, i) => table.players[i]?.name ?? '?' },
   };
 })();

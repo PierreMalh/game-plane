@@ -84,3 +84,10 @@ son hotspot Wi-Fi. Voir `README.md`.
 - **Poker** : `server/games/cards/poker.js` (Texas Hold'em No-Limit en tournoi : évaluateur de mains,
   pots annexes, tapis incomplet, blindes croissantes) ; client `public/games/poker.js` + `poker.css`.
   Les cartes privées ne sont publiques qu'à l'abattage (`players[i].cards`).
+- **Jeu de cartes personnalisé** : `server/card-skin.js` stocke une image par carte (clé = code
+  `AS`, `10H`… ou `back`) dans `custom-cards/` (non versionné, relu au démarrage ; `cardsDir` en
+  option de `start()` pour les tests). HTTP : `PUT|DELETE /api/cards/<clé>`, `DELETE /api/cards`,
+  `GET /custom-cards/<clé>?v=<version>` ; format reconnu à la signature (PNG/JPEG/GIF/WebP, 2 Mo max).
+  Diffusion WebSocket `card-skin` (+ `cardSkin` dans `welcome`). Client : `GPCards.setSkin` (image
+  par-dessus la carte dessinée, repli si elle ne charge pas), éditeur `public/deck-editor.js`
+  (`GPDeck`, réduit l'image en JPEG ~400 px avant l'envoi), `GPGames.refresh()` redessine la partie.

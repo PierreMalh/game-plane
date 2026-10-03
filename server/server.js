@@ -10,6 +10,7 @@ const crypto = require('crypto');
 const { acceptUpgrade } = require('./ws');
 const { createChat } = require('./chat');
 const { createTables } = require('./tables');
+const { createCardSkin, MAX_BYTES: MAX_CARD_BYTES } = require('./card-skin');
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const MIME = {
@@ -26,9 +27,10 @@ const MAX_NAME = 20;
 const HEARTBEAT_MS = 15000;
 const OFFLINE_TTL_MS = 5 * 60 * 1000; // un joueur déconnecté garde sa place 5 min
 
-function createApp({ offlineTtlMs = OFFLINE_TTL_MS, heartbeatMs = HEARTBEAT_MS } = {}) {
+function createApp({ offlineTtlMs = OFFLINE_TTL_MS, heartbeatMs = HEARTBEAT_MS, cardsDir } = {}) {
   // id → { id, name, conn|null, lastSeen }
   const players = new Map();
+  const cardSkin = createCardSkin({ dir: cardsDir });
   const chat = createChat({ players });
   const tables = createTables({ players, chat, broadcast: (m) => broadcast(m) });
 
@@ -65,7 +67,7 @@ function createApp({ offlineTtlMs = OFFLINE_TTL_MS, heartbeatMs = HEARTBEAT_MS }
     player.conn = conn;
     player.lastSeen = Date.now();
     state.player = player;
-    conn.send(JSON.stringify({ type: 'welcome', id: player.id, players: publicPlayers(), chat: chat.snapshot(player.id), tables: tables.list(), table: tables.viewFor(player.id) }));
+    conn.send(JSON.stringify({ type: 'welcome', id: player.id, players: publicPlayers(), chat: chat.snapshot(player.id), tables: tables.list(), table: tables.viewFor(player.id), cardSkin: cardSkin.list() }));
     broadcastPlayers();
   }
 
@@ -141,7 +143,9 @@ function createApp({ offlineTtlMs = OFFLINE_TTL_MS, heartbeatMs = HEARTBEAT_MS }
   }, Math.min(offlineTtlMs, 30000));
   sweeper.unref();
 
-  return { attach, players, chat, tables, stop() { clearInterval(heartbeat); clearInterval(sweeper); } };
+  const broadcastSkin = () => broadcast({ type: 'card-skin', skin: cardSkin.list() });
+
+  return { attach, players, chat, tables, cardSkin, broadcastSkin, stop() { clearInterval(heartbeat); clearInterval(sweeper); } };
 }
 
 // Chemin d'une requête, ou null si l'URL est malformée (ne doit jamais faire planter le serveur).
@@ -173,9 +177,78 @@ function serveStatic(req, res) {
   });
 }
 
+function sendJson(res, status, obj) {
+  res.writeHead(status, { 'Content-Type': MIME['.json'], 'Cache-Control': 'no-store' }).end(JSON.stringify(obj));
+}
+
+// Lit le corps d'une requête dans la limite de `max` octets (null si dépassée).
+function readBody(req, max) {
+  return new Promise((resolve) => {
+    const chunks = [];
+    let size = 0;
+    let done = false;
+    req.on('data', (c) => {
+      if (done) return;
+      size += c.length;
+      if (size > max) { done = true; resolve(null); req.resume(); return; }
+      chunks.push(c);
+    });
+    req.on('end', () => { if (!done) { done = true; resolve(Buffer.concat(chunks)); } });
+    req.on('error', () => { if (!done) { done = true; resolve(null); } });
+  });
+}
+
+// Jeu de cartes personnalisé :
+//   GET    /custom-cards/<clé>   image d'une carte (clé = « AS », « 10H »… ou « back »)
+//   PUT    /api/cards/<clé>      envoie l'image (corps brut PNG/JPEG/GIF/WebP)
+//   DELETE /api/cards/<clé>      revient à la carte dessinée ; DELETE /api/cards : tout
+// Chaque changement est diffusé à tous les joueurs (message `card-skin`).
+async function handleCards(app, req, res, pathname) {
+  let m = /^\/custom-cards\/([^/]+)$/.exec(pathname);
+  if (m) {
+    if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405).end(); return true; }
+    const entry = app.cardSkin.get(m[1]);
+    if (!entry) { res.writeHead(404).end('Not found'); return true; }
+    fs.readFile(entry.file, (err, data) => {
+      if (err) { res.writeHead(404).end('Not found'); return; }
+      // L'URL porte la version (?v=…) : le navigateur peut garder l'image en cache.
+      res.writeHead(200, { 'Content-Type': entry.mime, 'Cache-Control': 'max-age=31536000, immutable' });
+      res.end(req.method === 'HEAD' ? undefined : data);
+    });
+    return true;
+  }
+  if (pathname === '/api/cards' && req.method === 'DELETE') {
+    app.cardSkin.clear();
+    app.broadcastSkin();
+    sendJson(res, 200, { ok: true });
+    return true;
+  }
+  m = /^\/api\/cards\/([^/]+)$/.exec(pathname);
+  if (!m) return false;
+  let r;
+  if (req.method === 'PUT' || req.method === 'POST') {
+    const body = await readBody(req, MAX_CARD_BYTES);
+    r = body ? app.cardSkin.save(m[1], body) : { ok: false, error: 'too-big' };
+  } else if (req.method === 'DELETE') {
+    r = app.cardSkin.remove(m[1]);
+  } else {
+    res.writeHead(405).end();
+    return true;
+  }
+  if (r.ok && r.changed !== false) app.broadcastSkin();
+  sendJson(res, r.ok ? 200 : r.error === 'too-big' ? 413 : 400, r);
+  return true;
+}
+
 function start({ port = 8080, host = '0.0.0.0', ...opts } = {}) {
   const app = createApp(opts);
-  const server = http.createServer(serveStatic);
+  const server = http.createServer((req, res) => {
+    const pathname = pathnameOf(req);
+    if (pathname === null) { res.writeHead(400).end('Bad request'); return; }
+    handleCards(app, req, res, pathname)
+      .then((handled) => { if (!handled) serveStatic(req, res); })
+      .catch(() => { if (!res.headersSent) res.writeHead(500).end(); });
+  });
   server.on('upgrade', (req, socket) => {
     if (pathnameOf(req) !== '/ws') { socket.end('HTTP/1.1 404 Not Found\r\n\r\n'); return; }
     const conn = acceptUpgrade(req, socket);
