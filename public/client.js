@@ -76,11 +76,17 @@
         GPChat.snapshot(msg.chat);
         if (!joined) { joined = true; showLobby(); }
         renderPlayers(msg.players);
+        GPCards.setSkin(msg.cardSkin);
+        GPDeck.refresh();
         GPGames.setTables(msg.tables);
         GPGames.setTable(msg.table); // reprise d'une partie en cours après reconnexion
       } else if (msg.type === 'players') {
         GPChat.setPlayers(msg.players);
         renderPlayers(msg.players);
+      } else if (msg.type === 'card-skin') {
+        GPCards.setSkin(msg.skin);
+        GPDeck.refresh();
+        GPGames.refresh(); // redessine la partie en cours avec les nouvelles images
       } else if (!GPGames.onMessage(msg)) {
         GPChat.onMessage(msg);
       }
@@ -110,6 +116,7 @@
 
   GPChat.init({ send: sendJson });
   GPGames.init({ send: sendJson });
+  GPDeck.init();
   if (myName) $('name').value = myName;
   connect();
 })();

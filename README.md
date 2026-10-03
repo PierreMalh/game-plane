@@ -128,8 +128,24 @@ De haut en bas :
 - **Parties en cours** : les parties déjà lancées, avec un bouton **👁 Regarder** (voir
   [Regarder une partie](#regarder-une-partie-spectateur)).
 - **Nouvelle partie** : la liste des jeux disponibles, avec un bouton **Créer**.
+- **🃏 Jeu de cartes personnalisé** (replié) : voir [ci-dessous](#personnaliser-le-jeu-de-cartes).
 - En haut à droite, le bouton **💬** ouvre le chat (replié à l'arrivée) ; une pastille rouge
   indique les messages non lus.
+
+### Personnaliser le jeu de cartes
+
+Dans le salon, dépliez **🃏 Jeu de cartes personnalisé** : les 52 cartes et le dos s'affichent.
+
+- **Touchez une carte** pour choisir une photo (galerie ou appareil photo) : elle remplace cette
+  carte **pour tout le monde**, dans tous les jeux de cartes, y compris dans une partie en cours.
+- L'image est réduite sur votre téléphone puis **enregistrée sur le téléphone hôte**, dans le
+  dossier `custom-cards/` du projet : elle est toujours là au prochain lancement du serveur.
+- Mettez de préférence une image **en hauteur** (format carte, environ 5 × 7) : elle est recadrée
+  pour remplir la carte. Le **rang et la couleur** (ex. A ♠) restent affichés dans deux coins,
+  par-dessus la photo : la carte se lit toujours, quelle que soit l'image.
+- Le **✕** rouge d'une carte la remet d'origine ; **Revenir au jeu d'origine** efface toutes les images.
+- Astuce : préparez vos photos avant le vol (le dos aux couleurs de votre groupe, vos têtes sur les
+  figures…).
 
 ### Lancer une partie
 
@@ -480,7 +496,9 @@ branchez l'hôte si possible.
 ## 7. Limites à connaître
 
 - **Tout est gardé en mémoire dans le téléphone de l'hôte** : si le serveur est arrêté ou
-  Termux fermé, **toutes les parties et le chat repartent de zéro**.
+  Termux fermé, **toutes les parties et le chat repartent de zéro** (seules les images du jeu de
+  cartes personnalisé sont conservées, dans `custom-cards/`).
+- **N'importe quel joueur connecté peut changer les images des cartes** (pas de droits d'hôte).
 - **Si l'hôte quitte la session** (batterie, hotspot coupé), plus personne ne peut jouer.
 - **Pas de chronomètre** dans les jeux.
 - **Pas de comptes ni de scores durables** : un pseudo par session.

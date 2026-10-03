@@ -10,7 +10,19 @@
 .card.sel { transform: translateY(-10px); outline: 3px solid var(--acc); z-index: 1; }
 .card.dis { opacity: .4; }
 button.card { cursor: pointer; }
+.card.custom { overflow: hidden; background: #fff; }
+.card.custom > span:not(.idx) { visibility: hidden; }
+.card .idx { display: none; }
+.card.custom .idx { position: absolute; z-index: 1; display: flex; flex-direction: column; align-items: center;
+                    min-width: calc(var(--cw) * .3); padding: 1px 2px; border-radius: 3px; background: #fffe;
+                    line-height: .95; font-size: calc(var(--cw) * .26); box-shadow: 0 0 2px #0005; }
+.card.custom .idx b { font-weight: 800; }
+.card.custom .idx i { font-style: normal; font-size: .9em; }
+.card.custom .idx.tl { top: 2px; left: 2px; }
+.card.custom .idx.br { bottom: 2px; right: 2px; transform: rotate(180deg); }
+.card .skin { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; pointer-events: none; }
 .card.back { background: repeating-linear-gradient(45deg, #1d4ed8, #1d4ed8 4px, #1e40af 4px, #1e40af 8px); border: 2px solid #fff; }
+.card.back.custom { background: #fff; }
 .cards-row { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: center; justify-content: center; }
 .cards-row > .cp-table { min-width: 90px; }
 .cp-root { display: flex; flex-direction: column; gap: 12px; }
@@ -26,3 +38,20 @@ button.card { cursor: pointer; }
 .cp-table { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
 .cp-log { max-height: 7em; overflow-y: auto; font-size: .85rem; display: flex; flex-direction: column; gap: 2px; }
 .cp-big { font-size: 2.2rem; line-height: 1; }
+
+/* Éditeur du jeu personnalisé (salon) */
+#deck summary { cursor: pointer; font-weight: 600; color: var(--dim); font-size: .95rem; }
+#deck summary .hint { font-weight: 400; margin-left: 6px; }
+#deck-grid { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.deck-row { display: flex; flex-wrap: wrap; gap: 8px 6px; align-items: flex-end; }
+.deck-suit { width: 100%; font-size: .85rem; color: var(--dim); }
+.deck-slot { position: relative; }
+.deck-pick { background: none; padding: 0; border-radius: 6px; position: relative; display: block; }
+.deck-pick .card { display: block; }
+.deck-busy { position: absolute; inset: 0; display: grid; place-items: center; background: #0008; color: #fff; border-radius: 6px; }
+.deck-reset { position: absolute; top: -7px; right: -7px; width: 20px; height: 20px; padding: 0; border-radius: 50%;
+              font-size: .7rem; line-height: 20px; background: #ef4444; color: #fff; z-index: 1; }
+#deck-reset-all { margin-top: 8px; }
+.deck-err { color: var(--ko); }
+/* Pas de display:none : certains Safari iOS refusent alors d'ouvrir le sélecteur par click(). */
+.visually-hidden { position: absolute; width: 1px; height: 1px; opacity: 0; overflow: hidden; pointer-events: none; }
