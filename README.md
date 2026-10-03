@@ -141,7 +141,8 @@ Dans le salon, dépliez **🃏 Jeu de cartes personnalisé** : les 52 cartes et 
 - L'image est réduite sur votre téléphone puis **enregistrée sur le téléphone hôte**, dans le
   dossier `custom-cards/` du projet : elle est toujours là au prochain lancement du serveur.
 - Mettez de préférence une image **en hauteur** (format carte, environ 5 × 7) : elle est recadrée
-  pour remplir la carte. Pensez à garder le chiffre et la couleur lisibles !
+  pour remplir la carte. Le **rang et la couleur** (ex. A ♠) restent affichés dans deux coins,
+  par-dessus la photo : la carte se lit toujours, quelle que soit l'image.
 - Le **✕** rouge d'une carte la remet d'origine ; **Revenir au jeu d'origine** efface toutes les images.
 - Astuce : préparez vos photos avant le vol (le dos aux couleurs de votre groupe, vos têtes sur les
   figures…).

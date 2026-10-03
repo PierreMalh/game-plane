@@ -89,5 +89,5 @@ son hotspot Wi-Fi. Voir `README.md`.
   option de `start()` pour les tests). HTTP : `PUT|DELETE /api/cards/<clé>`, `DELETE /api/cards`,
   `GET /custom-cards/<clé>?v=<version>` ; format reconnu à la signature (PNG/JPEG/GIF/WebP, 2 Mo max).
   Diffusion WebSocket `card-skin` (+ `cardSkin` dans `welcome`). Client : `GPCards.setSkin` (image
-  par-dessus la carte dessinée, repli si elle ne charge pas), éditeur `public/deck-editor.js`
+  par-dessus la carte dessinée avec rang + couleur dans deux coins, repli si elle ne charge pas), éditeur `public/deck-editor.js`
   (`GPDeck`, réduit l'image en JPEG ~400 px avant l'envoi), `GPGames.refresh()` redessine la partie.

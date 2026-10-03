@@ -35,7 +35,8 @@ window.GPCards = (() => {
     node.dataset.code = code;
     node.setAttribute('aria-label', `${rankName(rankOf(code))} de ${SUIT_NAME[s]}`);
     node.append(el('span', 'r', rankOf(code)), el('span', 'su', SYM[s]), el('span', 'big', SYM[s]));
-    addImage(node, code);
+    // Face personnalisée : rang et couleur restent lisibles dans deux coins, par-dessus la photo.
+    if (addImage(node, code)) node.append(corner(code, 'tl'), corner(code, 'br'));
     return node;
   }
 
@@ -45,10 +46,19 @@ window.GPCards = (() => {
     return node;
   }
 
+  // Index d'un coin (rang au-dessus de la couleur) ; « br » est retourné comme sur une vraie carte.
+  function corner(code, pos) {
+    const c = el('span', `idx ${pos}`);
+    c.setAttribute('aria-hidden', 'true');
+    c.append(el('b', '', rankOf(code)), el('i', '', SYM[suitOf(code)]));
+    return c;
+  }
+
   // Image perso par-dessus le dessin d'origine, qui réapparaît si elle ne se charge pas.
+  // Renvoie vrai si une image a été posée.
   function addImage(node, key) {
     const url = skinUrl(key);
-    if (!url) return;
+    if (!url) return false;
     const img = el('img', 'skin');
     img.alt = '';
     img.draggable = false;
@@ -56,6 +66,7 @@ window.GPCards = (() => {
     img.src = url;
     node.classList.add('custom');
     node.append(img);
+    return true;
   }
 
   const setSkin = (map) => { skin = map && typeof map === 'object' ? { ...map } : {}; };

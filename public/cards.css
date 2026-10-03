@@ -11,7 +11,15 @@
 .card.dis { opacity: .4; }
 button.card { cursor: pointer; }
 .card.custom { overflow: hidden; background: #fff; }
-.card.custom > span { visibility: hidden; }
+.card.custom > span:not(.idx) { visibility: hidden; }
+.card .idx { display: none; }
+.card.custom .idx { position: absolute; z-index: 1; display: flex; flex-direction: column; align-items: center;
+                    min-width: calc(var(--cw) * .3); padding: 1px 2px; border-radius: 3px; background: #fffe;
+                    line-height: .95; font-size: calc(var(--cw) * .26); box-shadow: 0 0 2px #0005; }
+.card.custom .idx b { font-weight: 800; }
+.card.custom .idx i { font-style: normal; font-size: .9em; }
+.card.custom .idx.tl { top: 2px; left: 2px; }
+.card.custom .idx.br { bottom: 2px; right: 2px; transform: rotate(180deg); }
 .card .skin { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; pointer-events: none; }
 .card.back { background: repeating-linear-gradient(45deg, #1d4ed8, #1d4ed8 4px, #1e40af 4px, #1e40af 8px); border: 2px solid #fff; }
 .card.back.custom { background: #fff; }

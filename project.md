@@ -376,8 +376,10 @@ Audit par captures d'écran à 390 px de large (taille d'un téléphone) de chaq
   `/custom-cards/<clé>?v=<version>` est servie `immutable`, le changement de version suffit à
   invalider. La liste `{ clé: version }` arrive dans `welcome` et est **diffusée à tous** à chaque
   changement (`card-skin`) : la partie en cours est redessinée aussitôt (`GPGames.refresh()`).
-- **Affichage** : l'image couvre la carte (`object-fit: cover`) ; rang et couleur dessinés restent
-  dans le DOM (masqués) pour l'accessibilité et réapparaissent si l'image ne charge pas. Aucun jeu
+- **Affichage** : l'image couvre la carte (`object-fit: cover`). Le **rang et la couleur** restent
+  affichés par-dessus, dans deux coins (en haut à gauche, et retourné en bas à droite comme sur une
+  vraie carte), sur une pastille blanche : sans eux, une photo seule rend la carte illisible en jeu.
+  Le dessin d'origine reste dans le DOM (masqué) et réapparaît si l'image ne charge pas. Aucun jeu
   n'a eu à changer : tout passe par `GPCards.face` / `GPCards.back`.
 - **Éditeur** : section repliable dans le salon (pour ne pas charger 53 images à l'arrivée), grille
   par couleur ; toucher une carte ouvre le sélecteur de photos, ✕ la remet d'origine, bouton pour tout
