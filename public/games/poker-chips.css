@@ -40,9 +40,32 @@
 .ch-bar { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; margin-top: 12px; }
 .ch-bar button { padding: 14px 6px; line-height: 1.2; }
 
-/* Table du croupier */
-.ch-croupier-box { box-shadow: inset 0 0 0 1.5px #b07a2a; display: flex; flex-direction: column; gap: 10px; }
-.ch-croupier-box .cp-info { margin: 0; }
+/* Vue du croupier : la table en plein écran (par-dessus l'en-tête et les boutons du cadre ;
+   le chat, z-index 30, reste au-dessus). */
+.ch-full { position: fixed; inset: 0; z-index: 26; background: var(--bg); display: flex; flex-direction: column; gap: 8px;
+           padding: calc(8px + env(safe-area-inset-top)) 12px calc(10px + env(safe-area-inset-bottom)); }
+.ch-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.ch-top small { display: block; color: var(--dim); font: 600 .8rem/1.2 var(--round); }
+.ch-top b { display: block; font: 800 1.1rem/1.25 var(--round); }
+.ch-toggle { flex: none; padding: 10px 16px; }
+.ch-toggle[aria-expanded=true] { background: var(--acc); color: var(--on-acc); }
+/* Scène : la table prend toute la place libre (ovale allongé en portrait, couché en paysage). */
+.ch-stage { flex: 1; min-height: 0; }
+.ch-full .pt { margin: 0; max-width: none; aspect-ratio: auto; width: 100%; height: 100%; }
+.ch-dock { flex: none; max-height: 45%; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding: 12px;
+           border-radius: 16px; background: var(--card); box-shadow: inset 0 0 0 1.5px #b07a2a; }
+.ch-dock .hint { margin: 0; }
+.ch-won { font-weight: 600; }
+/* Volet « Gérer » : feuille qui monte du bas, voile derrière. */
+.ch-scrim { position: fixed; inset: 0; z-index: 27; background: #05071aa6; }
+.ch-sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 28; max-height: 85dvh; overflow-y: auto;
+            display: flex; flex-direction: column; gap: 10px; background: var(--card); border-radius: 18px 18px 0 0;
+            padding: 14px 14px calc(14px + env(safe-area-inset-bottom)); box-shadow: 0 -8px 30px #05071acc; }
+.ch-sheet-head { display: flex; align-items: center; justify-content: space-between; }
+.ch-sheet-head b { font: 800 1.05rem/1.2 var(--round); }
+.ch-close { background: transparent; color: var(--dim); padding: 6px 10px; font-size: 1.1rem; }
+.ch-sheet .cp-btns { margin-top: 0; }
+.ch-menulog { max-height: 10em; }
 .ch-wide { width: 100%; padding: 14px; }
 .ch-fold { background: var(--well); border-radius: 12px; padding: 0 12px; }
 .ch-fold summary { cursor: pointer; padding: 12px 0; font-weight: 600; }
@@ -63,3 +86,9 @@
 .ch-end { align-self: center; background: transparent; color: var(--ko); font-weight: 600; padding: 8px 12px; }
 .ch-mine .hint { white-space: nowrap; }
 .ch-mine .ch-stack { min-width: 0; flex-wrap: wrap; justify-content: flex-end; row-gap: 6px; }
+/* Paysage : bandeau à droite de la table plutôt que dessous. */
+@media (orientation: landscape) and (max-height: 520px) {
+  .ch-full { display: grid; grid-template-columns: 1fr minmax(220px, 34%); grid-template-rows: auto 1fr; column-gap: 12px; }
+  .ch-top { grid-column: 1 / -1; }
+  .ch-dock { max-height: none; align-self: center; }
+}

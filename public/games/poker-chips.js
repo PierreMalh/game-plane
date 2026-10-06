@@ -37,6 +37,7 @@
   let raiseTo = null, raiseKey = null; // mise composée au plateau de jetons
   let winners = { hand: -1, picks: [] }; // gagnants cochés par pot (par numéro de main)
   const folds = {}; // volets du croupier ouverts ou fermés à la main (survivent aux rafraîchissements)
+  let menuOpen = false; // volet « Gérer » du croupier ouvert
 
   // ---------------------------------------------------------------- jetons
 
@@ -137,7 +138,7 @@
   }
 
   // Table dessinée : les joueurs autour (le croupier ne s'assoit pas), leur mise en jetons devant eux.
-  function drawTable(table, s) {
+  function drawTable(table, s, full) {
     const seats = [];
     s.players.forEach((p, i) => {
       if (i === s.croupier) return;
@@ -157,7 +158,7 @@
         dealer: i === s.dealer && !!s.street, bet, cards: null,
       });
     });
-    return GPPokerTable.render({ seats, center: drawCenter(table, s), base: table.me, short: true });
+    return GPPokerTable.render({ seats, center: drawCenter(table, s), base: table.me, short: !full });
   }
 
   // Plateau de jetons : chaque toucher ajoute la valeur du jeton à la mise (dans les limites).
@@ -329,32 +330,88 @@
     return d;
   }
 
-  // Croupier, au-dessus de la table : ce qui fait avancer la main (lancer, désigner les gagnants).
-  function drawCroupierHand(table, s, send) {
-    const box = el('div', 'cp-box ch-croupier-box');
-    box.append(el('div', 'cp-info', '🎩 Table du croupier'));
-    if (s.phase === 'showdown') {
-      box.append(el('div', 'hint pk-center', 'Cartes sur table : touche le ou les gagnants de chaque pot.'), awardForm(table, s, send));
-    } else if (s.phase === 'setup' || s.phase === 'between') {
-      box.append(button(s.phase === 'setup' ? 'Commencer la partie' : 'Main suivante', () => send({ type: 'start' }), 'ch-wide'));
-    } else {
-      box.append(el('div', 'hint pk-center', 'Une main est en cours : le croupier suit les enchères.'));
-    }
-    return box;
+  // ---------------------------------------------------------------- vue du croupier
+  // Le téléphone du croupier devient la table : tapis en plein écran, bandeau du bas pour faire
+  // avancer la main, et un volet « Gérer » pour les actions ponctuelles (blindes, recave, fin).
+
+  function drawCroupierFull(table, s, send) {
+    const root = el('div', 'ch-full');
+
+    const top = el('div', 'ch-top');
+    const title = el('div');
+    title.append(el('small', null, '🎩 Croupier'), el('b', null, statusOf(table)));
+    const toggle = button('Gérer', () => { menuOpen = !menuOpen; GPGames.refresh(); }, 'sec ch-toggle');
+    toggle.setAttribute('aria-expanded', String(menuOpen));
+    top.append(title, toggle);
+
+    const stage = el('div', 'ch-stage');
+    stage.append(drawTable(table, s, true));
+
+    root.append(top, stage, drawDock(table, s, send));
+    if (menuOpen) root.append(drawMenu(table, s, send));
+    return root;
   }
 
-  // Croupier, sous la table : réglages, recave et fin de partie (hors enchères).
-  function drawCroupierTools(table, s, send) {
-    if (s.phase === 'betting') return null;
-    const box = el('div', 'cp-box ch-croupier-box');
+  // Bandeau du bas : ce qui fait avancer la main.
+  function drawDock(table, s, send) {
+    const dock = el('div', 'ch-dock');
+    const blinds = drawBlinds(s);
+    if (s.phase === 'showdown') {
+      dock.append(el('div', 'hint pk-center', 'Cartes sur table : touche le ou les gagnants de chaque pot.'), awardForm(table, s, send));
+    } else if (s.phase === 'setup' || s.phase === 'between') {
+      if (s.phase === 'between' && s.result) {
+        for (const p of s.result.pots) {
+          const line = logLine(table, `${p.winners.map((w) => `@${w}`).join(' et ')} ${p.winners.length > 1 ? 'partagent' : 'remporte'} ${p.amount}`);
+          line.classList.add('pk-center', 'ch-won');
+          dock.append(line);
+        }
+      }
+      dock.append(blinds, button(s.phase === 'setup' ? 'Commencer la partie' : 'Main suivante', () => send({ type: 'start' }), 'ch-wide'));
+    } else {
+      dock.append(el('div', 'hint pk-center', 'Main en cours : les joueurs misent sur leur téléphone.'), blinds);
+    }
+    return dock;
+  }
+
+  // Volet « Gérer » : réglages, recave, journal, chat, quitter, fin de partie.
+  function drawMenu(table, s, send) {
+    const wrap = el('div');
+    const scrim = el('div', 'ch-scrim');
+    scrim.addEventListener('click', () => { menuOpen = false; GPGames.refresh(); });
+    const sheet = el('div', 'ch-sheet');
+    sheet.setAttribute('role', 'dialog');
+    sheet.setAttribute('aria-label', 'Gestion de la partie');
+    const head = el('div', 'ch-sheet-head');
+    const close = button('✕', () => { menuOpen = false; GPGames.refresh(); }, 'ch-close');
+    close.setAttribute('aria-label', 'Fermer');
+    head.append(el('b', null, 'Gestion de la partie'), close);
+    sheet.append(head);
+
     if (s.phase === 'setup' || s.phase === 'between') {
       const first = s.phase === 'setup';
       const { form } = setupForm(s, send, first);
-      box.append(fold('config', `Blindes ${s.config.sb}/${s.config.bb}${first ? `, tapis ${s.config.stack}` : ''}`, form, first));
-      box.append(fold('give', 'Recave ou correction de jetons', giveForm(table, s, send), false));
+      sheet.append(fold('config', `Blindes ${s.config.sb}/${s.config.bb}${first ? `, tapis ${s.config.stack}` : ''}`, form, first));
+      sheet.append(fold('give', 'Recave ou correction de jetons', giveForm(table, s, send), false));
+    } else {
+      sheet.append(el('div', 'hint', 'Blindes et recave se règlent entre deux mains.'));
     }
-    box.append(button('Terminer la partie', () => { if (confirm('Terminer la partie pour tout le monde ?')) send({ type: 'end' }); }, 'ch-end'));
-    return box;
+
+    if (s.log.length) {
+      const log = el('div', 'cp-log ch-menulog');
+      for (const line of s.log.slice(-8)) log.append(logLine(table, line));
+      sheet.append(fold('log', 'Journal de la partie', log, false));
+    }
+
+    // Chat et départ : les boutons du cadre de jeu sont masqués par la table plein écran.
+    const row = el('div', 'cp-btns');
+    row.append(
+      button('💬 Chat de la table', () => { menuOpen = false; GPGames.refresh(); document.getElementById('gv-chat').click(); }, 'sec'),
+      button('Quitter', () => document.getElementById('gv-leave').click(), 'sec'),
+    );
+    sheet.append(row);
+    if (s.phase !== 'betting') sheet.append(button('Terminer la partie', () => { if (confirm('Terminer la partie pour tout le monde ?')) send({ type: 'end' }); }, 'ch-end'));
+    wrap.append(scrim, sheet);
+    return wrap;
   }
 
   function drawResult(table, s) {
@@ -397,6 +454,15 @@
 
   // ---------------------------------------------------------------- vue
 
+  function statusOf(table) {
+    const s = table.state;
+    if (s.phase === 'over') return 'Partie terminée';
+    if (s.phase === 'setup') return s.isCroupier ? 'Règle la partie, puis commence' : `${nm(table, s.croupier)} règle la partie`;
+    if (s.phase === 'between') return s.isCroupier ? 'Prêt pour la main suivante' : 'Entre deux mains';
+    if (s.phase === 'showdown') return s.isCroupier ? 'Désigne les gagnants' : 'Abattage';
+    return s.turn === table.me ? 'À toi de parler' : `Au tour de ${nm(table, s.turn)}`;
+  }
+
   function build(container, ctx) {
     const { table, send } = ctx;
     const s = table.state;
@@ -404,14 +470,13 @@
     if (s.phase === 'over') {
       root.append(drawTable(table, s), drawOver(table, s));
     } else {
-      if (s.isCroupier && !table.spectator) root.append(drawCroupierHand(table, s, send));
+      if (s.isCroupier && !table.spectator) { container.append(drawCroupierFull(table, s, send)); return; }
       root.append(drawTable(table, s), drawBlinds(s));
       if (!table.spectator) {
         if (!s.isCroupier) root.append(drawMine(table, s, send));
         const idle = s.phase === 'setup' || s.phase === 'between';
         if (s.phase === 'between') { const r = drawResult(table, s); if (r) root.append(r); }
-        if (s.isCroupier) { const t = drawCroupierTools(table, s, send); if (t) root.append(t); }
-        else if (idle) root.append(drawWaiting(table, s, send));
+        if (idle) root.append(drawWaiting(table, s, send));
         else if (s.phase === 'showdown') {
           const b = el('div', 'cp-box');
           b.append(el('div', 'cp-info', `Abattage : ${nm(table, s.croupier)} désigne le gagnant…`));
@@ -435,14 +500,7 @@
     errors: ERRORS,
     leaveWarning: 'Quitter la table ? Tu te couches et tes jetons sortent du jeu.',
     isMyTurn: (table) => table.state.hints.actions.length > 0 || (table.state.isCroupier && table.state.phase === 'showdown'),
-    status(table) {
-      const s = table.state;
-      if (s.phase === 'over') return 'Partie terminée';
-      if (s.phase === 'setup') return s.isCroupier ? 'Règle la partie, puis commence' : `${nm(table, s.croupier)} règle la partie`;
-      if (s.phase === 'between') return s.isCroupier ? 'Prêt pour la main suivante' : 'Entre deux mains';
-      if (s.phase === 'showdown') return s.isCroupier ? 'Désigne les gagnants' : 'Abattage';
-      return s.turn === table.me ? 'À toi de parler' : `Au tour de ${nm(table, s.turn)}`;
-    },
+    status: statusOf,
     render: build,
   });
 })();

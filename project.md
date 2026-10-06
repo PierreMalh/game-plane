@@ -474,3 +474,14 @@ Audit par captures d'écran à 390 px de large (taille d'un téléphone) de chaq
   des gagnants et « Distribuer les pots » à l'abattage), pour l'avoir sous les yeux sans défiler ;
   sous le tapis, les réglages des blindes, la recave et « Terminer la partie » (masqués pendant les
   enchères).
+- **Vue du croupier en plein écran** (remplace le découpage précédent) : le téléphone du croupier,
+  qui ne joue pas, devient la table. Calque `position: fixed` (z-index 26 : au-dessus de l'en-tête et
+  des boutons du cadre, sous le chat à 30) ; le tapis remplit toute la place libre (ovale allongé en
+  portrait, couché en paysage), les sièges restant placés en pourcentages. En haut, l'état de la
+  main et un bouton **« Gérer »** ; en bas, un bandeau qui fait avancer la main (résultat du coup
+  précédent + « Commencer » / « Main suivante », ou choix des gagnants à l'abattage) ; en paysage
+  bas (≤ 520 px de haut), le bandeau passe à droite de la table.
+- **Volet « Gérer »** (feuille qui monte du bas, voile derrière, état gardé au rafraîchissement) :
+  blindes et recave (entre deux mains seulement), journal, chat de la table et « Quitter » (les
+  boutons du cadre sont masqués par la table), « Terminer la partie ». La vue de fin de partie
+  (classement) reste la vue normale.

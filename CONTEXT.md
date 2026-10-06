@@ -97,4 +97,5 @@ son hotspot Wi-Fi. Voir `README.md`.
   (`GPDeck`, réduit l'image en JPEG ~400 px avant l'envoi), `GPGames.refresh()` redessine la partie.
 - **Jetons de poker** : `server/games/poker-chips.js` (aucune carte : mises, blindes, pots et pots annexes ;
   le **croupier** désigne les gagnants à l'abattage) ; client `public/games/poker-chips.js` + `.css`
-  (module de jetons dessinés en CSS et plateau de jetons à toucher pour composer la mise).
+  (module de jetons dessinés en CSS et plateau de jetons à toucher pour composer la mise). Le croupier a
+  une vue plein écran : la table, un bandeau pour faire avancer la main et un volet « Gérer ».
