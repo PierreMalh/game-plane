@@ -450,3 +450,22 @@ Audit par captures d'écran à 390 px de large (taille d'un téléphone) de chaq
   dans l'écran), tailles en unités de conteneur (`cqw`). Les mises des sièges latéraux passent sous
   le siège pour ne pas recouvrir les cartes communes. Vérifié dans Chromium à 360 et 390 px, de 4 à
   10 sièges, aucune erreur JS. Aucun changement serveur.
+
+## 2026-10-06 — Jetons de poker : console du joueur et table du croupier
+- **Jetons dessinés** : vus de profil dans les piles (tranche colorée à liserés, légèrement
+  empilées) et de dessus sur le plateau de mise (bord à créneaux en `repeating-conic-gradient`,
+  anneau intérieur, valeur au centre). Le jeton blanc a des liserés bleus (`--s`) pour rester lisible.
+- **Console du joueur** : tapis en grand (ambre) avec ses piles ; à son tour, plateau des 6 jetons
+  sur une ligne, aperçu de la mise, curseur, raccourcis en 4 colonnes, puis une **barre d'actions**
+  (se coucher / parole ou suivre / relancer) en bas, à largeur égale, sous le pouce. Le bouton de
+  relance quitte le panneau pour rejoindre cette barre (`raisePanel` renvoie `{ panel, go }`).
+- **Table du croupier** : « Commencer la partie » / « Main suivante » en premier ; réglages des
+  blindes (grille 2 colonnes) et recave dans des volets repliables dont l'état survit aux
+  rafraîchissements ; « Terminer la partie » relégué en lien rouge. À l'abattage, les gagnants se
+  cochent par des boutons bascule avec la couleur du joueur (`aria-pressed`).
+- **Correctif** : la liste de recave s'affichait vide quand le joueur mémorisé (index 0 par défaut)
+  était le croupier ; on retombe désormais sur le premier joueur de la liste.
+- **Table** : sans cartes, elle est moins haute (`short`), en ovale couché jusqu'à 6 sièges ; le pot
+  « 0 » n'est plus affiché hors des enchères, le journal vide n'apparaît plus.
+- Vérifié dans Chromium à 360 et 390 px (réglage, tour de mise, abattage du croupier, entre deux
+  mains, 10 sièges), aucune erreur JS.

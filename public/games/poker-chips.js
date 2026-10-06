@@ -11,7 +11,7 @@
   // Valeurs et couleurs des jetons, du plus grand au plus petit.
   const DENOMS = [
     { v: 1000, c: '#f59e0b' }, { v: 500, c: '#7c3aed' }, { v: 100, c: '#1f2937' },
-    { v: 25, c: '#16a34a' }, { v: 5, c: '#dc2626' }, { v: 1, c: '#e5e7eb' },
+    { v: 25, c: '#16a34a' }, { v: 5, c: '#dc2626' }, { v: 1, c: '#e5e7eb', s: '#2563eb' },
   ];
   const MAX_DISCS = 6; // jetons dessinés par colonne (le reste est indiqué par « ×n »)
 
@@ -36,6 +36,7 @@
   let draftSeen = false; // champs initialisés depuis la configuration du serveur
   let raiseTo = null, raiseKey = null; // mise composée au plateau de jetons
   let winners = { hand: -1, picks: [] }; // gagnants cochés par pot (par numéro de main)
+  const folds = {}; // volets du croupier ouverts ou fermés à la main (survivent aux rafraîchissements)
 
   // ---------------------------------------------------------------- jetons
 
@@ -50,11 +51,14 @@
     return out;
   }
 
-  function disc(d, label) {
-    const c = el('i', 'ch-disc', label);
-    c.style.setProperty('--c', d.c);
-    return c;
+  // Couleur du jeton (--c) et de ses liserés (--s, blanc sauf sur le jeton blanc).
+  function paint(node, d) {
+    node.style.setProperty('--c', d.c);
+    if (d.s) node.style.setProperty('--s', d.s);
+    return node;
   }
+
+  const disc = (d) => paint(el('i', 'ch-disc'), d);
 
   // Piles de jetons dessinées pour un montant ; `small` pour les listes.
   function stack(amount, small) {
@@ -111,9 +115,11 @@
     const box = document.createDocumentFragment();
     box.append(el('div', 'pt-street', s.street ? `${STREET[s.street]}, main n° ${s.handNo}` : s.handNo ? `Main n° ${s.handNo} terminée` : 'Game Plane'));
     if (s.pot > 0) box.append(stack(s.pot, true));
-    const tag = el('div', 'pt-pot');
-    tag.append(el('small', null, 'Pot'), document.createTextNode(String(s.pot)));
-    box.append(tag);
+    if (s.pot > 0 || s.phase === 'betting') {
+      const tag = el('div', 'pt-pot');
+      tag.append(el('small', null, 'Pot'), document.createTextNode(String(s.pot)));
+      box.append(tag);
+    }
     if (s.croupier >= 0 && table.players[s.croupier]) box.append(el('div', 'pt-street', `Croupier : ${nm(table, s.croupier)}`));
     return box;
   }
@@ -151,11 +157,12 @@
         dealer: i === s.dealer && !!s.street, bet, cards: null,
       });
     });
-    return GPPokerTable.render({ seats, center: drawCenter(table, s), base: table.me });
+    return GPPokerTable.render({ seats, center: drawCenter(table, s), base: table.me, short: true });
   }
 
   // Plateau de jetons : chaque toucher ajoute la valeur du jeton à la mise (dans les limites).
-  function raisePanel(s, box, send) {
+  // Renvoie le panneau et le bouton de relance, placé dans la barre d'actions.
+  function raisePanel(s) {
     const h = s.hints;
     const key = `${s.handNo}/${s.street}/${s.currentBet}`;
     if (raiseKey !== key || raiseTo === null) { raiseKey = key; raiseTo = h.minRaise; }
@@ -164,7 +171,8 @@
     const betting = s.currentBet === 0;
 
     const panel = el('div', 'ch-raise');
-    const go = button('', () => send({ type: raiseTo >= h.maxRaise ? 'allin' : 'raise', to: raiseTo }));
+    const go = el('button');
+    go.type = 'button';
     const slider = el('input');
     slider.type = 'range';
     slider.min = h.minRaise;
@@ -175,25 +183,24 @@
     const refresh = () => {
       slider.value = raiseTo;
       go.textContent = raiseTo >= h.maxRaise ? `Tapis (${h.maxRaise})` : `${betting ? 'Miser' : 'Relancer à'} ${raiseTo}`;
-      preview.replaceChildren(stack(raiseTo, true), el('b', null, String(raiseTo)));
+      preview.replaceChildren(el('span', 'hint', betting ? 'Ta mise' : 'Relance à'), stack(raiseTo, true), el('b', null, String(raiseTo)));
     };
     const set = (v) => { raiseTo = clamp(v); refresh(); };
     slider.addEventListener('input', () => set(Number(slider.value)));
 
-    // Jetons à toucher : on ne propose que ceux qui ne dépassent pas la marge restante.
+    // Jetons à toucher : on ne propose que ceux qui ne dépassent pas son tapis.
     const tray = el('div', 'ch-tray');
     const mine = s.players[s.me];
     for (const d of DENOMS) {
       if (d.v > mine.chips) continue;
-      const b = el('button', 'ch-tap', String(d.v));
+      const b = paint(el('button', 'ch-tap', String(d.v)), d);
       b.type = 'button';
-      b.style.setProperty('--c', d.c);
       b.setAttribute('aria-label', `Ajouter ${d.v}`);
       b.addEventListener('click', () => set(raiseTo + d.v));
       tray.append(b);
     }
 
-    const quick = el('div', 'cp-btns');
+    const quick = el('div', 'ch-presets');
     const potAfterCall = s.pot + h.toCall;
     const preset = (text, to) => quick.append(button(text, () => set(to), 'sec'));
     preset('Min', h.minRaise);
@@ -202,31 +209,38 @@
     preset('Tapis', h.maxRaise);
 
     refresh();
-    const goRow = el('div', 'cp-btns');
-    goRow.append(go);
-    panel.append(el('div', 'hint', 'Touche des jetons pour composer ta mise :'), tray, preview, slider, quick, goRow);
-    box.append(panel);
+    panel.append(preview, tray, slider, quick);
+    return { panel, go };
   }
 
+  // Console du joueur : son tapis en piles, puis, à son tour, le plateau de mise et la barre
+  // d'actions (se coucher, parole ou suivre, relancer) en bas, sous le pouce.
   function drawMine(table, s, send) {
-    const box = el('div', 'cp-box');
+    const box = el('div', 'cp-box ch-console');
     const me = s.players[table.me];
     const head = el('div', 'ch-mine');
-    head.append(el('div', 'hint', 'Tes jetons'), el('div', 'ch-mynum', `${me.chips} 🪙`), stack(me.chips));
-    if (me.bet > 0) head.append(el('div', 'hint', `Déjà misé ce tour : ${me.bet}`));
+    const num = el('div');
+    num.append(el('div', 'hint', 'Tes jetons'), el('div', 'ch-mynum', String(me.chips)));
+    if (me.bet > 0) num.append(el('div', 'hint', `Déjà misé ce tour : ${me.bet}`));
+    head.append(num, stack(me.chips));
     box.append(head);
 
     const h = s.hints;
-    const info = (t) => box.append(el('div', 'cp-info', t));
-    const btns = el('div', 'cp-btns');
+    const info = (t) => box.append(el('div', 'cp-info ch-say', t));
     if (s.phase === 'betting') {
       if (h.actions.length) {
         info(h.toCall > 0 ? `À toi de parler : ${h.toCall} pour suivre.` : 'À toi de parler.');
-        btns.append(button('Se coucher', () => send({ type: 'fold' }), 'danger'));
-        if (h.actions.includes('check')) btns.append(button('Parole (check)', () => send({ type: 'check' }), 'sec'));
-        if (h.actions.includes('call')) btns.append(button(h.toCall >= me.chips ? `Suivre à tapis (${h.toCall})` : `Suivre ${h.toCall}`, () => send({ type: 'call' }), 'sec'));
-        box.append(btns);
-        if (h.actions.includes('raise')) raisePanel(s, box, send);
+        const bar = el('div', 'ch-bar');
+        bar.append(button('Se coucher', () => send({ type: 'fold' }), 'danger'));
+        if (h.actions.includes('check')) bar.append(button('Parole', () => send({ type: 'check' }), 'sec'));
+        if (h.actions.includes('call')) bar.append(button(h.toCall >= me.chips ? `Suivre à tapis (${h.toCall})` : `Suivre ${h.toCall}`, () => send({ type: 'call' }), 'sec'));
+        if (h.actions.includes('raise')) {
+          const { panel, go } = raisePanel(s);
+          go.addEventListener('click', () => send({ type: raiseTo >= h.maxRaise ? 'allin' : 'raise', to: raiseTo }));
+          box.append(panel);
+          bar.append(go);
+        }
+        box.append(bar);
       } else if (me.inHand && !me.folded) info(me.allIn ? 'Tu es à tapis : attends l’abattage.' : `Au tour de ${nm(table, s.turn)}…`);
       else info('Tu es couché pour cette main.');
     }
@@ -241,12 +255,14 @@
       draftSeen = true;
     }
     const form = el('div', 'ch-form');
-    form.append(
-      number('stack', 'Tapis de départ', { min: 1, disabled: !firstTime }),
+    const grid = el('div', 'ch-grid');
+    grid.append(
       number('sb', 'Petite blinde', { min: 1 }),
       number('bb', 'Grosse blinde', { min: 1 }),
-      number('every', 'Blindes ×2 toutes les N mains (0 = jamais)', { min: 0 }),
+      number('stack', 'Tapis de départ', { min: 1, disabled: !firstTime }),
+      number('every', 'Doubler toutes les N mains', { min: 0 }),
     );
+    form.append(grid, el('div', 'hint', 'N = 0 : les blindes ne doublent jamais toutes seules.'));
     const num = (v) => Number(v);
     const msg = () => ({ type: 'config', ...(firstTime ? { stack: num(draft.stack) } : {}), sb: num(draft.sb), bb: num(draft.bb), blindEvery: num(draft.every) });
     const row = el('div', 'cp-btns');
@@ -257,12 +273,18 @@
 
   function giveForm(table, s, send) {
     const box = el('div', 'ch-form');
-    box.append(el('div', 'hint', 'Recave / correction de jetons :'));
     const sel = el('select');
+    sel.setAttribute('aria-label', 'Joueur');
     s.players.forEach((p, i) => { if (!p.left && i !== s.croupier) { const o = el('option', null, nm(table, i)); o.value = i; sel.append(o); } });
-    sel.value = draft.player;
+    // Joueur choisi parti ou devenu croupier : on retombe sur le premier de la liste.
+    if ([...sel.options].some((o) => o.value === draft.player)) sel.value = draft.player;
+    else draft.player = sel.value;
     sel.addEventListener('change', () => { draft.player = sel.value; });
-    box.append(sel, number('amount', 'Montant'));
+    const who = el('label', 'ch-field');
+    who.append(el('span', 'hint', 'Joueur'), sel);
+    const grid = el('div', 'ch-grid');
+    grid.append(who, number('amount', 'Montant'));
+    box.append(grid);
     const row = el('div', 'cp-btns');
     const give = (sign) => { const a = Number(draft.amount) * sign; if (a) { send({ type: 'give', player: Number(sel.value), amount: a }); draft.amount = ''; } };
     row.append(button('Donner', () => give(1), 'sec'), button('Retirer', () => give(-1), 'sec'));
@@ -283,8 +305,9 @@
           const cur = winners.picks[k];
           winners.picks[k] = on ? cur.filter((x) => x !== i) : [...cur, i];
           GPGames.refresh();
-        }, on ? '' : 'sec');
-        b.style.borderColor = color(i);
+        }, 'ch-pick' + (on ? ' on' : ''));
+        b.style.setProperty('--pc', color(i));
+        b.setAttribute('aria-pressed', String(on));
         row.append(b);
       }
       part.append(row);
@@ -292,9 +315,18 @@
     });
     const ready = winners.picks.every((w) => w.length > 0);
     const go = el('div', 'cp-btns');
-    go.append(button('Distribuer les pots', () => send({ type: 'award', winners: winners.picks }), '', !ready));
+    go.append(button('Distribuer les pots', () => send({ type: 'award', winners: winners.picks }), 'ch-wide', !ready));
     box.append(el('div', 'hint', 'Plusieurs gagnants sur un pot = partage à parts égales.'), go);
     return box;
+  }
+
+  // Volet repliable ; son état ouvert/fermé est gardé quand l'écran est redessiné.
+  function fold(key, title, content, openByDefault) {
+    const d = el('details', 'ch-fold');
+    d.open = folds[key] ?? openByDefault;
+    d.addEventListener('toggle', () => { folds[key] = d.open; });
+    d.append(el('summary', null, title), content);
+    return d;
   }
 
   function drawCroupier(table, s, send) {
@@ -303,18 +335,18 @@
     const idle = s.phase === 'setup' || s.phase === 'between';
 
     if (s.phase === 'showdown') {
-      box.append(el('div', 'hint', 'Cartes sur table : qui gagne chaque pot ?'), awardForm(table, s, send));
+      box.append(el('div', 'hint pk-center', 'Cartes sur table : touche le ou les gagnants de chaque pot.'), awardForm(table, s, send));
     } else if (idle) {
-      const { form } = setupForm(s, send, s.phase === 'setup');
-      const start = el('div', 'cp-btns');
-      start.append(button(s.phase === 'setup' ? 'Commencer la partie' : 'Main suivante', () => send({ type: 'start' })));
-      box.append(form, giveForm(table, s, send), start);
+      const first = s.phase === 'setup';
+      box.append(button(first ? 'Commencer la partie' : 'Main suivante', () => send({ type: 'start' }), 'ch-wide'));
+      const { form } = setupForm(s, send, first);
+      box.append(fold('config', `Blindes ${s.config.sb}/${s.config.bb}${first ? `, tapis ${s.config.stack}` : ''}`, form, first));
+      box.append(fold('give', 'Recave ou correction de jetons', giveForm(table, s, send), false));
     } else {
-      box.append(el('div', 'hint', 'Une main est en cours : le croupier suit les enchères.'));
+      box.append(el('div', 'hint pk-center', 'Une main est en cours : le croupier suit les enchères.'));
     }
     if (s.phase !== 'betting') {
-      const end = el('div', 'cp-btns');
-      end.append(button('Terminer la partie', () => { if (confirm('Terminer la partie pour tout le monde ?')) send({ type: 'end' }); }, 'danger'));
+      const end = button('Terminer la partie', () => { if (confirm('Terminer la partie pour tout le monde ?')) send({ type: 'end' }); }, 'ch-end');
       box.append(end);
     }
     return box;
@@ -381,11 +413,13 @@
         }
       } else if (s.phase === 'between') { const r = drawResult(table, s); if (r) root.append(r); }
     }
-    const log = el('div', 'cp-box cp-log');
-    for (const line of s.log.slice(-8)) log.append(logLine(table, line));
-    root.append(log);
     container.append(root);
-    log.scrollTop = log.scrollHeight;
+    if (s.log.length) {
+      const log = el('div', 'cp-box cp-log');
+      for (const line of s.log.slice(-8)) log.append(logLine(table, line));
+      root.append(log);
+      log.scrollTop = log.scrollHeight;
+    }
   }
 
   GPGames.register({

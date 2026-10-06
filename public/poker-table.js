@@ -9,6 +9,7 @@
 //           devant soi, en petit au-dessus du siège pour les autres).
 //   center : nœud placé au milieu du tapis.
 //   base : index du joueur assis en bas (soi-même), sinon le premier siège.
+//   short : table moins haute, quand aucune carte n'est posée (Jetons de poker).
 // Le joueur suivant est à gauche de celui du bas, comme autour d'une vraie table.
 
 window.GPPokerTable = (() => {
@@ -39,8 +40,9 @@ window.GPPokerTable = (() => {
     return box;
   }
 
-  function render({ seats, center, base }) {
-    const root = el('div', 'pt');
+  function render({ seats, center, base, short }) {
+    // Table basse et peu de joueurs : ovale couché, comme une vraie table vue d'en haut.
+    const root = el('div', 'pt' + (short ? ' short' + (seats.length <= 6 ? ' wide' : '') : ''));
     const rail = el('div', 'pt-rail');
     const felt = el('div', 'pt-felt');
     rail.append(felt);
@@ -71,7 +73,7 @@ window.GPPokerTable = (() => {
         const b = el('div', 'pt-bet');
         b.append(s.bet);
         if (Math.abs(Math.cos(a)) > 0.75) place(b, a, 0.82, 46);
-        else place(b, a, s.me ? 0.34 : 0.45);
+        else place(b, a, s.me && !short ? 0.34 : s.me ? 0.55 : 0.45);
         root.append(b);
       }
     });

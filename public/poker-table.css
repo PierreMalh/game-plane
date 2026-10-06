@@ -53,3 +53,7 @@
 .pt-chip { width: 18px; height: 18px; border-radius: 50%; background: #d63b3b; border: 3px dashed #fff; box-shadow: 0 1px 2px #000a; }
 
 @media (min-width: 520px) { .pt { aspect-ratio: 5 / 4; --px: 44px; } .pt-center { width: 56%; top: 48%; } }
+/* Sans cartes posées (Jetons de poker), la table est moins haute. */
+.pt.short { aspect-ratio: 1; margin-top: 14px; }
+@media (min-width: 520px) { .pt.short { aspect-ratio: 16 / 10; } }
+.pt.short.wide { aspect-ratio: 5 / 4; --py: 24px; }

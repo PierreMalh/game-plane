@@ -1,26 +1,65 @@
-/* Jetons de poker : piles de jetons dessinées en CSS, plateau de mise, table du croupier
-   (la table elle-même est dans poker-table.css). */
-.ch-stack { display: inline-flex; align-items: flex-end; gap: 4px; min-height: 28px; }
+/* Jetons de poker : piles de jetons dessinées en CSS, console du joueur (plateau de mise et barre
+   d'actions), table du croupier. La table elle-même est dans poker-table.css. */
+
+/* Jeton vu de profil (piles) : tranche colorée à liserés (--s), empilée avec un léger recouvrement. */
+.ch-stack { display: inline-flex; align-items: flex-end; gap: 5px; min-height: 26px; }
 .ch-col { display: flex; flex-direction: column-reverse; align-items: center; }
-.ch-disc { display: block; width: 46px; height: 12px; margin-top: -6px; border-radius: 50%; background: var(--c);
-           border: 2px dashed #ffffffb0; box-shadow: 0 1px 0 #0006; box-sizing: border-box; }
-.ch-n { font-size: .7rem; color: #e5e7eb; text-shadow: 0 1px 2px #000; }
-.ch-none { color: #94a3b8; }
-.ch-stack.small .ch-disc { width: 26px; height: 8px; margin-top: -4px; border-width: 1px; }
-.ch-stack.small { min-height: 18px; gap: 2px; }
+.ch-disc { --s: #fff; display: block; width: 40px; height: 8px; margin-top: -2px; border-radius: 45% / 50%;
+           background: repeating-linear-gradient(90deg, var(--c) 0 6px, var(--s) 6px 9px);
+           box-shadow: inset 0 -2px 0 #0005, inset 0 1px 0 #fff6, 0 1px 1px #0007; }
+.ch-n { font: 800 .7rem/1.1 var(--round); color: #fff; text-shadow: 0 1px 2px #000; }
+.ch-none { color: var(--dim); }
+.ch-stack.small { min-height: 16px; gap: 2px; }
+.ch-stack.small .ch-disc { width: 22px; height: 5px; margin-top: -1px;
+                           background: repeating-linear-gradient(90deg, var(--c) 0 4px, var(--s) 4px 6px); }
 .ch-stack.small .ch-n { font-size: .6rem; }
-.ch-mine { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.ch-mynum { font-size: 1.8rem; font-weight: 800; line-height: 1; }
-.ch-raise { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
-.ch-raise input[type=range] { width: 100%; }
-.ch-raise .hint { text-align: center; }
-.ch-tray { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-.ch-tap { width: 52px; height: 52px; padding: 0; border-radius: 50%; background: var(--c); color: #fff; font-weight: 800;
-          border: 4px dashed #ffffffc0; box-shadow: 0 2px 0 #0008; text-shadow: 0 1px 2px #000; }
-.ch-tap:active { transform: translateY(2px); box-shadow: none; }
-.ch-preview { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 1.2rem; }
-.ch-form { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
-.ch-field { display: flex; flex-direction: column; gap: 2px; }
-.ch-field input, .ch-form select { width: 100%; box-sizing: border-box; }
-.ch-award { padding: 8px 0; border-top: 1px solid #ffffff20; }
-.ch-croupier-box { box-shadow: inset 0 0 0 1.5px #b07a2a; }
+
+/* Console du joueur */
+.ch-console { padding-bottom: 14px; }
+.ch-mine { display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; }
+.ch-mine .hint { margin: 0; }
+.ch-mynum { font: 800 2.1rem/1 var(--round); color: var(--acc); letter-spacing: -.01em; }
+.ch-say { margin: 14px 0 0; }
+.ch-raise { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: 14px;
+            background: var(--well); }
+.ch-raise input[type=range] { width: 100%; margin: 0; }
+.ch-preview { display: flex; align-items: flex-end; justify-content: center; gap: 10px; min-height: 30px; }
+.ch-preview .hint { margin: 0; }
+.ch-preview b { font: 800 1.5rem/1 var(--round); }
+/* Jetons à toucher, vus de dessus : bord à créneaux, anneau intérieur, valeur au centre. */
+.ch-tray { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; justify-items: center; }
+.ch-tap { --s: #fff; width: 100%; max-width: 56px; aspect-ratio: 1; padding: 0; border-radius: 50%; color: #fff;
+          font: 800 .8rem/1 var(--round); text-shadow: 0 1px 2px #000;
+          background: radial-gradient(circle, var(--c) 0 47%, var(--s) 48% 51%, var(--c) 52% 66%, transparent 67%),
+                      repeating-conic-gradient(var(--c) 0 22.5deg, var(--s) 22.5deg 45deg);
+          box-shadow: 0 3px 0 #0009, 0 5px 10px #0006; }
+.ch-tap:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #0009; }
+.ch-presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.ch-presets button { padding: 8px 4px; font-size: .9rem; }
+/* Barre d'actions : boutons de même largeur, sous le pouce. */
+.ch-bar { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 8px; margin-top: 12px; }
+.ch-bar button { padding: 14px 6px; line-height: 1.2; }
+
+/* Table du croupier */
+.ch-croupier-box { box-shadow: inset 0 0 0 1.5px #b07a2a; display: flex; flex-direction: column; gap: 10px; }
+.ch-croupier-box .cp-info { margin: 0; }
+.ch-wide { width: 100%; padding: 14px; }
+.ch-fold { background: var(--well); border-radius: 12px; padding: 0 12px; }
+.ch-fold summary { cursor: pointer; padding: 12px 0; font-weight: 600; }
+.ch-fold[open] { padding-bottom: 12px; }
+.ch-form { display: flex; flex-direction: column; gap: 8px; }
+.ch-form .hint { margin: 0; }
+.ch-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: end; }
+.ch-field { display: flex; flex-direction: column; gap: 3px; }
+.ch-field .hint { margin: 0; }
+.ch-field input, .ch-field select { width: 100%; box-sizing: border-box; background: var(--card); }
+.ch-form .cp-btns { margin-top: 2px; }
+.ch-award { padding: 10px 0 0; border-top: 1px solid var(--line); }
+.ch-award .cp-btns { margin-top: 6px; }
+.ch-pick { background: var(--well); color: var(--txt); box-shadow: inset 0 0 0 1.5px var(--line); }
+.ch-pick::before { content: ''; display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: var(--pc);
+                   margin-right: 7px; vertical-align: 1px; }
+.ch-pick.on { background: var(--acc); color: var(--on-acc); box-shadow: none; }
+.ch-end { align-self: center; background: transparent; color: var(--ko); font-weight: 600; padding: 8px 12px; }
+.ch-mine .hint { white-space: nowrap; }
+.ch-mine .ch-stack { min-width: 0; flex-wrap: wrap; justify-content: flex-end; row-gap: 6px; }
