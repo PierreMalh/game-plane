@@ -95,6 +95,8 @@
     box.setAttribute('aria-hidden', 'true');
     for (const { d, n } of breakdown(amount).slice(0, cols)) {
       const col = el('span', 'ch-col');
+      col.dataset.c = d.c;
+      col.dataset.n = n;
       for (let k = 0; k < Math.min(n, MAX_DISCS); k++) col.append(disc(d));
       if (n > MAX_DISCS) col.append(el('b', 'ch-n', `×${n}`));
       box.append(col);
@@ -102,7 +104,8 @@
     return box;
   }
 
-  // Pile à toucher : les jetons explosent sur l'écran et le clic est compté (envoyé par paquets).
+  // Pile à toucher : la colonne touchée (une couleur) saute en l'air et retombe, et le clic est
+  // compté (envoyé par paquets).
   function tappable(node) {
     if (!sendFn) return node;
     node.classList.add('ch-tapme');
@@ -110,37 +113,68 @@
     node.removeAttribute('aria-hidden');
     node.setAttribute('aria-label', 'Faire sauter les jetons');
     node.addEventListener('click', (e) => {
-      const r = node.getBoundingClientRect();
-      burst(e.clientX || r.left + r.width / 2, e.clientY || r.top + r.height / 2);
+      // Colonne visée : celle sous le doigt, sinon la plus proche horizontalement.
+      const cols = [...node.querySelectorAll('.ch-col')];
+      const col = e.target.closest?.('.ch-col') ?? cols.sort((a, b) => dist(a, e.clientX) - dist(b, e.clientX))[0];
+      if (col) burst(col);
       taps++;
-      if (!tapTimer) tapTimer = setTimeout(() => { const n = Math.min(taps, 50); taps = 0; tapTimer = null; sendFn?.({ type: 'tap', n }); }, 600);
+      if (!tapTimer) tapTimer = setTimeout(() => { const n = Math.min(taps, 50); taps = 0; tapTimer = null; sendFn?.({ type: 'tap', n }); }, 1100); // après la retombée des jetons
     });
     return node;
   }
 
-  // Gerbe de jetons lancés depuis (x, y) qui retombent hors de l'écran (Web Animations, sans image).
-  function burst(x, y) {
-    if (calm() || document.querySelectorAll('.ch-burst').length > 2) return;
+  const dist = (node, x) => { const r = node.getBoundingClientRect(); return Math.abs(r.left + r.width / 2 - x); };
+
+  // Explosion d'une colonne de jetons : chaque jeton part de sa place dans la pile, monte, tourne
+  // puis retombe sous l'effet de la gravité, rebondit une fois sur le bas de l'écran et sort.
+  // Simulation simple (requestAnimationFrame), sans image ni bibliothèque. La colonne disparaît
+  // le temps du vol puis se reforme.
+  function burst(col) {
+    if (calm() || col.dataset.flying) return;
+    const discs = [...col.querySelectorAll('.ch-disc')];
+    if (!discs.length) return;
+    const count = Math.min(Math.max(discs.length, Number(col.dataset.n) || 0), 24);
+    const H = window.innerHeight, W = window.innerWidth;
     const layer = el('div', 'ch-burst');
     layer.setAttribute('aria-hidden', 'true');
-    const W = window.innerWidth, H = window.innerHeight;
-    for (let k = 0; k < 26; k++) {
+    const g = 2600; // gravité en px/s²
+    const bits = [];
+    for (let k = 0; k < count; k++) {
+      const from = discs[Math.min(k, discs.length - 1)].getBoundingClientRect();
       const c = el('i', 'ch-flyer');
-      c.style.setProperty('--c', DENOMS[Math.floor(Math.random() * DENOMS.length)].c);
-      c.style.left = `${x}px`;
-      c.style.top = `${y}px`;
+      c.style.setProperty('--c', col.dataset.c);
+      c.style.width = `${Math.max(24, from.width)}px`;
+      c.style.height = `${Math.max(8, from.height)}px`;
       layer.append(c);
-      const a = Math.random() * Math.PI * 2, r = 0.3 + Math.random() * 0.7;
-      const dx = Math.cos(a) * W * r, up = H * (0.15 + Math.random() * 0.35);
-      const spin = 360 + Math.random() * 720;
-      c.animate([
-        { transform: 'translate(0, 0) rotateX(0) rotate(0) scale(.6)' },
-        { transform: `translate(${dx * 0.55}px, ${-up}px) rotateX(${spin / 2}deg) rotate(${spin / 3}deg) scale(1.1)`, offset: 0.4 },
-        { transform: `translate(${dx}px, ${H - y + 60}px) rotateX(${spin}deg) rotate(${spin / 2}deg) scale(1)` },
-      ], { duration: 1000 + Math.random() * 600, easing: 'cubic-bezier(.25,.6,.5,1)', fill: 'forwards' });
+      bits.push({
+        node: c, x: from.left, y: from.top - (k - discs.length + 1 > 0 ? (k - discs.length + 1) * from.height * 0.5 : 0),
+        vx: (Math.random() - 0.5) * 520, vy: -(900 + Math.random() * 700 + k * 25),
+        a: 0, va: (Math.random() - 0.5) * 1440, flip: 0, vf: 360 + Math.random() * 900, bounced: false,
+      });
     }
     document.body.append(layer);
-    setTimeout(() => layer.remove(), 1700);
+    col.dataset.flying = '1';
+    col.style.visibility = 'hidden';
+    let last = performance.now();
+    const t0 = last;
+    const step = (t) => {
+      const dt = Math.min(0.04, (t - last) / 1000);
+      last = t;
+      let alive = 0;
+      for (const b of bits) {
+        b.vy += g * dt;
+        b.x += b.vx * dt; b.y += b.vy * dt;
+        b.a += b.va * dt; b.flip += b.vf * dt;
+        if (!b.bounced && b.y > H - 14 && b.vy > 0) { b.bounced = true; b.vy *= -0.45; b.vx *= 0.7; b.vf *= 0.5; }
+        if (b.y < H + 40 && b.x > -60 && b.x < W + 60) alive++;
+        b.node.style.transform = `translate(${b.x}px, ${b.y}px) rotate(${b.a}deg) rotateX(${b.flip}deg)`;
+      }
+      if (alive && t - t0 < 4000) requestAnimationFrame(step);
+      else layer.remove();
+    };
+    requestAnimationFrame(step);
+    // La pile se reforme (si la page n'a pas déjà été redessinée entre-temps).
+    setTimeout(() => { col.style.visibility = ''; delete col.dataset.flying; col.classList.add('ch-reform'); }, 900);
   }
 
   // Œuf lancé depuis le bas de l'écran vers le siège visé.

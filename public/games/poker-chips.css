@@ -17,8 +17,11 @@
 .ch-tapme { cursor: pointer; border-radius: 12px; padding: 4px; margin: -4px; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 .ch-tapme:active { transform: scale(.94); }
 .ch-burst { position: fixed; inset: 0; z-index: 39; pointer-events: none; overflow: hidden; perspective: 600px; }
-.ch-flyer { position: absolute; width: 34px; height: 34px; margin: -17px 0 0 -17px; border-radius: 50%; background: var(--c);
-            border: 5px dashed #ffffffc8; box-shadow: 0 2px 4px #0008; box-sizing: border-box; }
+.ch-flyer { position: absolute; left: 0; top: 0; border-radius: 50%; background: var(--c); will-change: transform;
+            border: 2px dashed #ffffffc8; box-shadow: 0 2px 3px #0008; box-sizing: border-box; }
+.ch-col { cursor: pointer; }
+.ch-reform { animation: ch-reform .35s ease-out; }
+@keyframes ch-reform { from { opacity: 0; transform: translateY(-10px); } }
 .ch-egg-fly { position: fixed; left: 0; top: 0; z-index: 39; margin: -18px 0 0 -18px; font-size: 32px; line-height: 1; pointer-events: none; }
 
 /* ---- barre du croupier ---- */

@@ -472,10 +472,13 @@ Audit par captures d'écran à 390 px de large (taille d'un téléphone) de chaq
 - **Gros plan (croupier)** : la table seule en plein écran (Fullscreen API si possible, sinon
   superposition fixe) avec écran maintenu allumé (Wake Lock). Les tailles des sièges, du pot et du bouton
   central suivent la largeur de la table (unités `cqw`, conteneur CSS) : grande table sur tablette.
-- **Explosion de jetons** : toucher une pile (ses jetons, le pot) lance une gerbe de 26 jetons animés
-  (Web Animations, aucun fichier), coupée si `prefers-reduced-motion`. Chaque toucher incrémente le
-  **compteur de clics** du joueur (`tap { n }`), affiché en badge 👆 à côté de chaque siège. Les clics sont
-  regroupés par paquets de 600 ms pour ne pas reconstruire la page de tout le monde à chaque toucher.
+- **Explosion de jetons** : toucher une pile (ses jetons, le pot) fait sauter **seulement la colonne de
+  la couleur touchée** : ses jetons (autant que dans la colonne, 24 au plus) partent de leur place,
+  tournent, **retombent avec la gravité** (petite simulation `requestAnimationFrame`, 2 600 px/s²),
+  rebondissent une fois en bas de l'écran puis sortent ; la colonne se reforme ensuite. Coupée si
+  `prefers-reduced-motion`. Chaque toucher incrémente le **compteur de clics** du joueur (`tap { n }`),
+  affiché en badge 👆 à côté de chaque siège. Clics regroupés et envoyés 1,1 s après le premier (après
+  la retombée) pour ne pas reconstruire la page de tout le monde à chaque toucher.
 - **Œufs** : toucher un autre joueur (ou le croupier) ouvre son petit menu → « Lancer un œuf »
   (`egg { player }`, 12 au plus en attente). L'œuf vole jusqu'au siège ; la victime voit des taches
   (CSS pur, positions reproductibles d'un rafraîchissement à l'autre), vibre, et doit appuyer sur
