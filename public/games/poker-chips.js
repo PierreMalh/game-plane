@@ -67,12 +67,82 @@
     box.setAttribute('aria-label', `${amount} jetons`);
     for (const { d, n } of breakdown(amount)) {
       const col = el('span', 'ch-col');
+      col.dataset.v = d.v;
       for (let k = 0; k < Math.min(n, MAX_DISCS); k++) col.append(disc(d));
       if (n > MAX_DISCS) col.append(el('b', 'ch-n', `×${n}`));
       box.append(col);
     }
     if (amount <= 0) box.append(el('span', 'ch-none', '—'));
     return box;
+  }
+
+  // ---------------------------------------------------------------- jetons qui volent
+  // Pour jouer avec ses jetons en attendant : toucher sa pile en fait sauter quelques-uns, qui
+  // tournoient, retombent, rebondissent sur les bords de l'écran puis s'effacent. Purement local :
+  // rien n'est envoyé au serveur. Le calque est posé sur <body> pour survivre aux rafraîchissements.
+
+  const FLY = { size: 34, gravity: 2200, life: 2.6, max: 60 };
+  const flying = [];
+  let flyLayer = null;
+  let flyLast = 0;
+
+  function fling(x, y, denoms) {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches || !denoms.length) return;
+    if (!flyLayer || !flyLayer.isConnected) { flyLayer = el('div', 'ch-fly-layer'); document.body.append(flyLayer); }
+    const count = 3 + Math.floor(Math.random() * 3);
+    for (let k = 0; k < count && flying.length < FLY.max; k++) {
+      const d = denoms[Math.floor(Math.random() * denoms.length)];
+      const node = paint(el('i', 'ch-fly', String(d.v)), d);
+      flyLayer.append(node);
+      flying.push({
+        node, x: x - FLY.size / 2, y: y - FLY.size / 2, t: 0,
+        vx: (Math.random() - 0.5) * 900, vy: -900 - Math.random() * 700,
+        rot: Math.random() * 360, vrot: (Math.random() - 0.5) * 900,
+        flip: Math.random() * Math.PI, vflip: 8 + Math.random() * 14,
+      });
+    }
+    if (navigator.vibrate) navigator.vibrate(10);
+    if (!flyLast) { flyLast = performance.now(); requestAnimationFrame(flyStep); }
+  }
+
+  function flyStep(now) {
+    const dt = Math.min(0.05, (now - flyLast) / 1000);
+    flyLast = now;
+    const w = innerWidth - FLY.size, h = innerHeight - FLY.size;
+    for (let k = flying.length - 1; k >= 0; k--) {
+      const c = flying[k];
+      c.t += dt;
+      c.vy += FLY.gravity * dt;
+      c.x += c.vx * dt;
+      c.y += c.vy * dt;
+      c.rot += c.vrot * dt;
+      c.flip += c.vflip * dt;
+      if (c.x < 0 || c.x > w) { c.x = Math.min(Math.max(c.x, 0), w); c.vx *= -0.7; }
+      if (c.y < 0) { c.y = 0; c.vy *= -0.5; }
+      if (c.y > h) { c.y = h; c.vy *= -0.55; c.vx *= 0.8; c.vflip *= 0.6; c.vrot *= 0.6; }
+      // Retournement autour de l'axe horizontal : la pièce s'aplatit puis revient, comme une pièce lancée.
+      c.node.style.transform = `translate3d(${c.x}px, ${c.y}px, 0) rotate(${c.rot}deg) scaleY(${Math.max(0.12, Math.abs(Math.cos(c.flip)))})`;
+      c.node.style.opacity = String(Math.min(1, (FLY.life - c.t) / 0.4));
+      if (c.t >= FLY.life) { c.node.remove(); flying.splice(k, 1); }
+    }
+    if (flying.length) requestAnimationFrame(flyStep);
+    else flyLast = 0;
+  }
+
+  // Sa pile, à toucher : la colonne touchée donne la couleur des jetons lancés.
+  function playStack(amount) {
+    const b = el('button', 'ch-play');
+    b.type = 'button';
+    b.setAttribute('aria-label', 'Faire sauter tes jetons');
+    b.append(stack(amount));
+    b.addEventListener('click', (e) => {
+      const col = e.target.closest('.ch-col');
+      const all = breakdown(amount).map((x) => x.d);
+      const picked = col ? all.filter((d) => d.v === Number(col.dataset.v)) : all;
+      const r = (col ?? b).getBoundingClientRect();
+      fling(e.clientX || r.left + r.width / 2, e.clientY || r.top, picked.length ? picked : all);
+    });
+    return b;
   }
 
   // ---------------------------------------------------------------- éléments d'interface
@@ -223,8 +293,9 @@
     const num = el('div');
     num.append(el('div', 'hint', 'Tes jetons'), el('div', 'ch-mynum', String(me.chips)));
     if (me.bet > 0) num.append(el('div', 'hint', `Déjà misé ce tour : ${me.bet}`));
-    head.append(num, stack(me.chips));
+    head.append(num, me.chips > 0 ? playStack(me.chips) : stack(0));
     box.append(head);
+    if (me.chips > 0 && !s.hints.actions.length) box.append(el('div', 'hint pk-center', 'Touche ta pile pour faire sauter tes jetons.'));
 
     const h = s.hints;
     const info = (t) => box.append(el('div', 'cp-info ch-say', t));

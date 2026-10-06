@@ -92,3 +92,13 @@
   .ch-top { grid-column: 1 / -1; }
   .ch-dock { max-height: none; align-self: center; }
 }
+
+/* Jetons qui volent quand on touche sa pile (calque sur <body>, sous le chat). */
+.ch-play { background: transparent; padding: 4px; margin: -4px; border-radius: 10px; cursor: pointer; min-width: 0; }
+.ch-play:active:not(:disabled) { transform: scale(.94); }
+.ch-fly-layer { position: fixed; inset: 0; z-index: 29; pointer-events: none; overflow: hidden; }
+.ch-fly { --s: #fff; position: absolute; left: 0; top: 0; width: 34px; height: 34px; border-radius: 50%; will-change: transform;
+          display: grid; place-items: center; color: #fff; font: 800 .6rem/1 var(--round); font-style: normal; text-shadow: 0 1px 2px #000;
+          background: radial-gradient(circle, var(--c) 0 47%, var(--s) 48% 51%, var(--c) 52% 66%, transparent 67%),
+                      repeating-conic-gradient(var(--c) 0 22.5deg, var(--s) 22.5deg 45deg);
+          box-shadow: 0 3px 6px #0008; }

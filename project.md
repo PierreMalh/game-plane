@@ -485,3 +485,11 @@ Audit par captures d'écran à 390 px de large (taille d'un téléphone) de chaq
   blindes et recave (entre deux mains seulement), journal, chat de la table et « Quitter » (les
   boutons du cadre sont masqués par la table), « Terminer la partie ». La vue de fin de partie
   (classement) reste la vue normale.
+- **Jouer avec ses jetons** : toucher sa pile (console « Tes jetons ») fait sauter 3 à 5 jetons de la
+  couleur de la colonne touchée (toute la pile si on touche à côté). Petite physique maison dans une
+  seule boucle `requestAnimationFrame` : gravité, rebonds amortis sur les bords et le bas de l'écran,
+  rotation, et retournement de pièce simulé par `scaleY(|cos φ|)` ; disparition en fondu après 2,6 s,
+  60 jetons au plus à l'écran. Calque `position: fixed` sur `<body>` (survit aux rafraîchissements de
+  la partie), `pointer-events: none` (les boutons restent utilisables), sous le chat. Purement local,
+  rien n'est envoyé au serveur ; désactivé si le téléphone demande moins d'animations ; petite
+  vibration au toucher. Une ligne d'aide l'indique quand ce n'est pas son tour.
