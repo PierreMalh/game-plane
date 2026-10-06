@@ -18,14 +18,18 @@
 //   20e des jetons en jeu, progression géométrique arrondie à des valeurs « rondes »). Le
 //   niveau change au début d'une main ; le croupier peut passer au niveau suivant ou mettre en pause.
 //   Pour rire : compteur de clics sur les jetons (`tap`), œufs lancés sur un joueur (`egg`) qu'il
-//   doit nettoyer (`clean`). Aucun effet sur les jetons.
+//   doit nettoyer (`clean`). Chacun commence avec 10 œufs, en gagne un par main remportée ; après
+//   un nettoyage on est protégé 15 s. Aucun effet sur les jetons.
+//   Le croupier peut recommencer la partie (`restart`) : jetons, mains et horloge remis à zéro.
 // Phases : setup → betting → showdown | between → betting … → over.
 
 const MAX_CHIPS = 1e9;
 const LOG_MAX = 20;
 const STREETS = ['preflop', 'flop', 'turn', 'river'];
 const DEFAULTS = { stack: 1000, sb: 10, bb: 20, blindEvery: 0, duration: 0 };
-const MAX_EGGS = 12;
+const MAX_EGGS = 12; // taches en attente sur un écran
+const EGG_STOCK = 10; // œufs de départ de chacun
+const SHIELD_MS = 15000; // protection après un nettoyage
 const MAX_TAPS = 50; // clics envoyés en un message (le client les regroupe)
 let now = () => Date.now();
 
@@ -47,8 +51,9 @@ function init(ids) {
     minRaise: DEFAULTS.bb,
     result: null,
     log: [],
+    base: { sb: DEFAULTS.sb, bb: DEFAULTS.bb }, // blindes réglées (avant doublements), pour recommencer
     clock: null, // niveaux de blindes au temps : { levels, levelMs, level, levelAt, paused }
-    players: ids.map((_, i) => ({ chips: i === 0 ? 0 : DEFAULTS.stack, bet: 0, total: 0, folded: false, allIn: false, inHand: false, acted: false, noRaise: false, sitOut: false, left: false, taps: 0, eggs: 0, eggBy: -1 })),
+    players: ids.map((_, i) => ({ chips: i === 0 ? 0 : DEFAULTS.stack, bet: 0, total: 0, folded: false, allIn: false, inHand: false, acted: false, noRaise: false, sitOut: false, left: false, taps: 0, eggs: 0, eggBy: -1, eggStock: EGG_STOCK, shieldUntil: 0 })),
   };
 }
 
@@ -113,8 +118,9 @@ const nice = (x) => NICE.reduce((best, v) => (Math.abs(Math.log(v / x)) < Math.a
 // (deux joueurs restants à ~10 grosses blindes chacun : la partie se termine vite). Progression
 // géométrique de raison ~1,5 ; la durée d'un niveau en découle. Au-delà, 6 niveaux de
 // prolongation ×1,5 pour finir la partie si elle déborde.
-function blindPlan(stack, count, minutes) {
-  const bb0 = nice(Math.max(2, stack / 100));
+// `startBb` : grosse blinde de départ imposée (durée choisie en cours de partie).
+function blindPlan(stack, count, minutes, startBb) {
+  const bb0 = startBb ? nice(startBb) : nice(Math.max(2, stack / 100));
   const end = Math.max(bb0 * 2, (stack * Math.max(2, count)) / 20);
   const steps = Math.max(1, Math.round(Math.log(end / bb0) / Math.log(1.5)));
   const levelMin = Math.min(60, Math.max(3, Math.round(minutes / (steps + 1))));
@@ -129,12 +135,17 @@ function blindPlan(stack, count, minutes) {
   return { levels, levelMin, planned: steps + 1 };
 }
 
+// Calcule l'horloge. Avant la partie : d'après le tapis de départ. En cours de partie : d'après
+// les jetons en jeu, à partir des blindes actuelles, et l'horloge part tout de suite.
 function setPlan(st) {
   const cfg = st.config;
   if (!cfg.duration) { st.clock = null; return; }
-  const count = present(st).filter((i) => i !== st.croupier).length;
-  const plan = blindPlan(cfg.stack, count, cfg.duration);
-  st.clock = { levels: plan.levels, planned: plan.planned, levelMs: plan.levelMin * 60000, level: 0, levelAt: null, paused: null };
+  const seats = present(st).filter((i) => i !== st.croupier);
+  const running = st.phase !== 'setup';
+  const chips = seats.reduce((t, i) => t + st.players[i].chips, 0);
+  const count = running ? seats.filter((i) => st.players[i].chips > 0).length : seats.length;
+  const plan = running ? blindPlan(chips / Math.max(1, count), count, cfg.duration, cfg.bb) : blindPlan(cfg.stack, count, cfg.duration);
+  st.clock = { levels: plan.levels, planned: plan.planned, levelMs: plan.levelMin * 60000, level: 0, levelAt: running ? now() : null, paused: null };
   Object.assign(cfg, plan.levels[0]);
 }
 
@@ -247,6 +258,7 @@ function settle(st) {
 function winByFold(st, i) {
   const amount = pot(st);
   st.players[i].chips += amount;
+  st.players[i].eggStock++;
   st.result = { fold: true, pots: [{ amount, winners: [i] }] };
   say(st, `@${i} remporte ${amount} : tous les autres se sont couchés.`);
   endHand(st);
@@ -330,11 +342,15 @@ function config(st, a) {
   if (!isInt(every, 0, 100) || !isInt(duration, 0, 720)) return fail('bad-amount');
   if (!isInt(stack, 1, 1e7)) return fail('bad-amount');
   const setup = st.phase === 'setup';
-  if (!setup && ((a.stack !== undefined && a.stack !== c.stack) || (a.duration !== undefined && a.duration !== c.duration))) return fail('hand-running');
+  if (!setup && a.stack !== undefined && a.stack !== c.stack) return fail('hand-running');
+  const newDuration = duration !== c.duration;
   Object.assign(c, { sb, bb, blindEvery: every, stack, duration });
+  if (setup) st.base = { sb, bb };
   if (setup) {
     st.players.forEach((p, i) => { p.chips = i === st.croupier ? 0 : stack; });
     setPlan(st); // la durée impose les blindes de départ
+  } else if (newDuration) {
+    setPlan(st); // nouvelle durée en cours de partie : nouvelle structure à partir des blindes actuelles
   } else if (st.clock) {
     // Blindes modifiées à la main en cours de partie : l'horloge est arrêtée.
     if (c.sb !== st.clock.levels[st.clock.level].sb || c.bb !== st.clock.levels[st.clock.level].bb) { st.clock = null; c.duration = 0; }
@@ -386,6 +402,8 @@ function award(st, a) {
     say(st, `${order.map((i) => `@${i}`).join(' et ')} ${order.length > 1 ? 'partagent' : 'remporte'} ${p.amount}.`);
   });
   st.result = result;
+  // Un œuf de plus par gagnant de la main (une seule fois même avec plusieurs pots).
+  for (const i of new Set(result.pots.flatMap((p) => p.winners))) st.players[i].eggStock++;
   endHand(st);
   return ok();
 }
@@ -401,6 +419,21 @@ function give(st, a) {
   return ok();
 }
 
+// Recommence la partie : tapis de départ pour tous, mains, bouton et horloge remis à zéro. Les
+// réglages, les absences et les compteurs de clics sont conservés ; les œufs repartent à 10.
+function restart(st) {
+  st.players.forEach((p, i) => Object.assign(p, {
+    chips: i === st.croupier || p.left ? 0 : st.config.stack, bet: 0, total: 0, folded: false, allIn: false,
+    inHand: false, acted: false, noRaise: false, eggs: 0, eggStock: EGG_STOCK, shieldUntil: 0,
+  }));
+  Object.assign(st, { phase: 'setup', handNo: 0, dealer: -1, street: null, turn: -1, currentBet: 0, result: null, log: [] });
+  Object.assign(st.config, st.base);
+  st.minRaise = st.config.bb;
+  setPlan(st);
+  say(st, 'Partie recommencée par le croupier.');
+  return ok();
+}
+
 function croupierAction(st, i, a) {
   switch (a.type) {
     case 'config': return config(st, a);
@@ -409,6 +442,7 @@ function croupierAction(st, i, a) {
     case 'give': return give(st, a);
     case 'level': return level(st, a);
     case 'pause': return pause(st, a);
+    case 'restart': return restart(st);
     case 'end': st.phase = 'over'; st.turn = -1; return ok();
     default: return null;
   }
@@ -439,11 +473,18 @@ function action(st, idx, a) {
   if (a.type === 'egg') {
     const p = st.players[a.player];
     if (!p || p.left || a.player === idx) return fail('bad-target');
+    if (st.players[idx].eggStock <= 0) return fail('no-eggs');
+    if (p.shieldUntil > now()) return fail('protected');
+    st.players[idx].eggStock--;
     p.eggs = Math.min(p.eggs + 1, MAX_EGGS);
     p.eggBy = idx;
     return ok();
   }
-  if (a.type === 'clean') { st.players[idx].eggs = 0; return ok(); }
+  if (a.type === 'clean') {
+    const p = st.players[idx];
+    if (p.eggs) { p.eggs = 0; p.shieldUntil = now() + SHIELD_MS; }
+    return ok();
+  }
   if (a.type === 'sitout') {
     if (!idleOrSetup(st)) return fail('hand-running');
     // Soi-même, ou n'importe qui si on est croupier.
@@ -522,7 +563,7 @@ function view(st, idx) {
       level: st.clock.level, levels: st.clock.levels, planned: st.clock.planned, levelMin: st.clock.levelMs / 60000,
       started: st.clock.levelAt !== null, paused: st.clock.paused !== null, left: levelLeft(st.clock),
     },
-    players: st.players.map((p) => ({ chips: p.chips, bet: p.bet, total: p.total, folded: p.folded, allIn: p.allIn, inHand: p.inHand, sitOut: p.sitOut, left: p.left, taps: p.taps, eggs: p.eggs, eggBy: p.eggBy })),
+    players: st.players.map((p) => ({ chips: p.chips, bet: p.bet, total: p.total, folded: p.folded, allIn: p.allIn, inHand: p.inHand, sitOut: p.sitOut, left: p.left, taps: p.taps, eggs: p.eggs, eggBy: p.eggBy, eggStock: p.eggStock, shield: Math.max(0, p.shieldUntil - now()) })),
     me: idx >= 0 ? idx : null,
     hints: hints(st, idx),
   };

@@ -488,3 +488,33 @@ Audit par captures d'écran à 390 px de large (taille d'un téléphone) de chaq
 - **Tests** : +2 (structure de blindes, niveaux au temps, pause, niveau suivant ; clics et œufs sans
   effet sur les jetons), 292 au total ; rendu à blanc (mini-DOM) du gros plan, de la durée, des clics, de
   l'œuf et du nettoyage.
+
+## 2026-10-06 — Jetons de poker : chrono sur la table, recommencer, stock d'œufs, nouveaux jetons
+- **Chrono des blindes sur la table** (tous les écrans, au centre) : niveau, blindes en cours, compte à
+  rebours, blindes suivantes. Côté croupier : ⏸/▶ et **« Blinde suivante ⏭ »** directement sur la table.
+  Au passage d'un niveau (automatique au début d'une main ou manuel) : **son** (3 notes, Web Audio, aucun
+  fichier, débloqué au premier toucher), vibration et bandeau « les blindes montent ! » ~4 s. Fin du
+  temps d'un niveau vue par le croupier : petit signal sonore.
+- **Durée réglable aussi en cours de partie** (entre deux mains) : `blindPlan` repart des blindes
+  actuelles et des jetons en jeu (moyenne des tapis, joueurs encore servis) ; l'horloge repart tout de
+  suite. La section « ⏱ Durée de la partie » est en tête du menu, avec la liste des niveaux et l'heure de
+  début de chacun. Constat : sans relancer le serveur après la mise à jour, l'ancien moteur ignorait la
+  durée — d'où « je ne vois pas les modifications ».
+- **Recommencer la partie** (`restart`, croupier, à tout moment) : tapis de départ pour tous, mains,
+  bouton, journal et horloge remis à zéro, blindes réglées d'origine (`st.base`, avant doublements) ;
+  réglages, absences et compteurs de clics conservés, œufs remis à 10. **Double toucher** : le premier
+  arme le bouton 4 s (« Toucher encore… »), le second exécute ; « Terminer la partie » suit le même
+  principe (fin du `confirm()` natif).
+- **Œufs** : 10 chacun au départ (`eggStock`, croupier compris), +1 par main gagnée (une fois même avec
+  plusieurs pots), refus `no-eggs` à 0. Après « Nettoyer », **protégé 15 s** (`shieldUntil`, refus
+  `protected`) : 🛡 sur le siège jusqu'à l'échéance, bouton d'œuf grisé. Stock affiché (🥚 ×n) dans ma
+  place et dans la barre du croupier.
+- **Compteur de clics plus réactif** : toujours affiché (même à 0) à côté de chaque siège, y compris
+  sur la table du croupier ; mon compteur monte **immédiatement** au toucher (clics « en vol » ajoutés
+  localement puis rapprochés de la valeur du serveur), effet « +1 » quand un compteur augmente. Envoi :
+  1er clic tout de suite, puis paquets toutes les 400 ms. Une colonne encore en vol reste cachée si la
+  page est redessinée entre-temps.
+- **Nouveaux jetons** (CSS pur, taille pilotée par `--w`) : vue de côté à liserés couleur / inserts
+  clairs avec reflet et ombre ; jeton du dessus vu en perspective (anneau d'inserts en
+  `repeating-conic-gradient`, filet clair, épaisseur) ; jetons du plateau et jetons en vol vus de dessus.
+  Couleur d'insert par valeur (inserts bleus sur le jeton blanc de 1).

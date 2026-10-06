@@ -254,8 +254,22 @@ test('durée de partie : structure de blindes croissante, niveaux au temps, paus
     assert.equal(c.level, 2);
     assert.equal(st.config.bb, c.levels[2].bb);
     assert.equal(act(st, 0, 'level', { delta: 1 }).error, 'not-croupier');
-    // La durée ne se change plus une fois la partie lancée.
-    assert.equal(act(st, st.croupier, 'config', { duration: 90 }).error, 'hand-running');
+    // Nouvelle durée en cours de partie : structure recalculée à partir des blindes actuelles.
+    const bbNow = st.config.bb;
+    must(act(st, st.croupier, 'config', { duration: 90 }));
+    assert.notEqual(st.clock, c);
+    assert.equal(st.clock.level, 0);
+    assert.equal(st.config.bb, bbNow);
+    assert.equal(g.view(st, 0).clock.started, true);
+    assert.equal(act(st, st.croupier, 'config', { stack: 5000 }).error, 'hand-running');
+    // Recommencer : tapis, mains et horloge remis à zéro, blindes de départ.
+    must(act(st, st.croupier, 'restart'));
+    assert.equal(st.phase, 'setup');
+    assert.equal(st.handNo, 0);
+    assert.ok(st.players.every((p, i) => p.chips === (i === st.croupier ? 0 : 1000)));
+    assert.equal(st.clock.level, 0);
+    assert.equal(st.clock.levelAt, null);
+    assert.equal(act(st, 0, 'restart').error, 'not-croupier');
   } finally {
     g._internal.setNow(() => Date.now());
   }
@@ -271,12 +285,31 @@ test('pour rire : compteur de clics et œufs, sans effet sur les jetons', () => 
   assert.equal(g.view(st, 1).players[0].taps, 7);
   assert.equal(g.view(st, 1).players[st.croupier].taps, 1);
   assert.equal(act(st, 1, 'egg', { player: 1 }).error, 'bad-target');
-  for (let k = 0; k < 20; k++) must(act(st, 1, 'egg', { player: 2 }));
+  // 10 œufs chacun au départ.
+  for (let k = 0; k < 10; k++) must(act(st, 1, 'egg', { player: 2 }));
+  assert.equal(act(st, 1, 'egg', { player: 2 }).error, 'no-eggs');
+  assert.equal(g.view(st, 0).players[1].eggStock, 0);
   must(act(st, 2, 'egg', { player: st.croupier }));
-  assert.equal(g.view(st, 0).players[2].eggs, 12);
+  assert.equal(g.view(st, 0).players[2].eggs, 10);
   assert.equal(g.view(st, 0).players[2].eggBy, 1);
-  must(act(st, 2, 'clean'));
-  assert.equal(st.players[2].eggs, 0);
+  // Nettoyer protège 15 s.
+  let t = 5e6;
+  g._internal.setNow(() => t);
+  try {
+    must(act(st, 2, 'clean'));
+    assert.equal(st.players[2].eggs, 0);
+    assert.equal(g.view(st, 0).players[2].shield, 15000);
+    assert.equal(act(st, 0, 'egg', { player: 2 }).error, 'protected');
+    t += 15001;
+    must(act(st, 0, 'egg', { player: 2 }));
+  } finally {
+    g._internal.setNow(() => Date.now());
+  }
   assert.equal(total(st), before);
   assert.equal(st.phase, 'betting');
+  // Gagner une main rapporte un œuf.
+  const stock = st.players.map((p) => p.eggStock);
+  while (st.phase === 'betting') must(act(st, st.turn, 'fold'));
+  const winner = st.result.pots[0].winners[0];
+  assert.equal(st.players[winner].eggStock, stock[winner] + 1);
 });

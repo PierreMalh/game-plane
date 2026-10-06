@@ -16,8 +16,8 @@
 
   // Valeurs et couleurs des jetons, du plus grand au plus petit.
   const DENOMS = [
-    { v: 1000, c: '#e0a526' }, { v: 500, c: '#6d3fc0' }, { v: 100, c: '#1c1c22' },
-    { v: 25, c: '#17804a' }, { v: 5, c: '#b8261d' }, { v: 1, c: '#e8e2d2' },
+    { v: 1000, c: '#d99a1e', s: '#fff7e0' }, { v: 500, c: '#6a3dbd', s: '#f3ecff' }, { v: 100, c: '#202028', s: '#f2f2f2' },
+    { v: 25, c: '#16834b', s: '#f4fff8' }, { v: 5, c: '#c0261b', s: '#fff1ef' }, { v: 1, c: '#ece6d6', s: '#2f6fd6' },
   ];
   const MAX_DISCS = 6; // jetons dessinés par colonne (le reste est indiqué par « ×n »)
 
@@ -36,6 +36,8 @@
     'bad-target': 'Joueur introuvable.',
     'no-clock': 'Pas d’horloge : choisis d’abord une durée de partie.',
     'no-level': 'Pas d’autre niveau.',
+    'no-eggs': 'Plus d’œufs : gagne une main pour en récupérer un !',
+    'protected': 'Il vient de se nettoyer : protégé encore quelques secondes.',
   };
   const STREET = { preflop: 'Pré-flop', flop: 'Flop', turn: 'Turn', river: 'River' };
 
@@ -51,8 +53,14 @@
   let pop = -1, flyTo = -1; // joueur touché (petit menu) et cible d'un œuf en vol
   let eggSeen = 0; // œufs déjà animés sur mon écran
   let taps = 0, tapTimer = null, sendFn = null; // clics sur les jetons pas encore envoyés
-  const deadlines = new WeakMap(); // état reçu → fin du niveau de blindes (horloge du téléphone)
+  let inflight = 0, lastMyTaps = null, myIdx = null; // clics envoyés pas encore confirmés par le serveur
+  const shownTaps = {}; // dernier compteur affiché par joueur (pour l'effet « +1 »)
+  const flights = new Map(); // colonne en vol (`pile|couleur`) → fin du vol, gardée cachée au redessin
+  const arrived = new WeakMap(); // état reçu → heure d'arrivée (les durées du serveur deviennent des échéances locales)
   let ticker = null;
+  let lastLevel = null, levelUpAt = 0; // changement de niveau de blindes : son et bandeau
+  let confirmUntil = { restart: 0, end: 0 }; // double toucher de confirmation
+  let audio = null;
 
   const fmt = (v) => v.toLocaleString('fr-FR');
   const short = (v) => (v >= 1e4 ? `${Math.floor(v / 1000)}k` : v >= 1000 ? `${(v / 1000).toFixed(1).replace('.', ',')}k` : String(v));
@@ -63,6 +71,27 @@
     return h ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`;
   }
   const durLabel = (m) => (m < 60 ? `${m} min` : `${Math.floor(m / 60)} h${m % 60 ? ` ${m % 60}` : ''}`);
+  // Son sans fichier (Web Audio) : débloqué au premier toucher, comme l'exigent les navigateurs.
+  function unlockAudio() {
+    try { audio ??= new (window.AudioContext || window.webkitAudioContext)(); audio.resume?.(); } catch { audio = null; }
+  }
+  document.addEventListener?.('pointerdown', unlockAudio, { capture: true });
+  function chime(notes = [659, 784, 1047]) {
+    if (!audio) return;
+    const t0 = audio.currentTime + 0.02;
+    notes.forEach((f, k) => {
+      const o = audio.createOscillator(), g = audio.createGain(), t = t0 + k * 0.17;
+      o.type = 'triangle';
+      o.frequency.value = f;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.4, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.7);
+      o.connect(g).connect(audio.destination);
+      o.start(t);
+      o.stop(t + 0.75);
+    });
+  }
+
   // Hasard reproductible (mêmes taches d'œuf à chaque rafraîchissement).
   function rand(seed) {
     let a = seed >>> 0;
@@ -86,6 +115,7 @@
   function disc(d) {
     const c = el('i', 'ch-disc');
     c.style.setProperty('--c', d.c);
+    c.style.setProperty('--s', d.s);
     return c;
   }
 
@@ -96,6 +126,7 @@
     for (const { d, n } of breakdown(amount).slice(0, cols)) {
       const col = el('span', 'ch-col');
       col.dataset.c = d.c;
+      col.dataset.s = d.s;
       col.dataset.n = n;
       for (let k = 0; k < Math.min(n, MAX_DISCS); k++) col.append(disc(d));
       if (n > MAX_DISCS) col.append(el('b', 'ch-n', `×${n}`));
@@ -106,8 +137,13 @@
 
   // Pile à toucher : la colonne touchée (une couleur) saute en l'air et retombe, et le clic est
   // compté (envoyé par paquets).
-  function tappable(node) {
+  function tappable(node, key) {
     if (!sendFn) return node;
+    // Colonne encore en vol depuis le rendu précédent : elle reste cachée jusqu'à sa retombée.
+    for (const col of node.querySelectorAll('.ch-col')) {
+      const until = flights.get(`${key}|${col.dataset.c}`) ?? 0;
+      if (until > Date.now()) { col.style.visibility = 'hidden'; setTimeout(() => { col.style.visibility = ''; col.classList.add('ch-reform'); }, until - Date.now()); }
+    }
     node.classList.add('ch-tapme');
     node.setAttribute('role', 'button');
     node.removeAttribute('aria-hidden');
@@ -116,11 +152,32 @@
       // Colonne visée : celle sous le doigt, sinon la plus proche horizontalement.
       const cols = [...node.querySelectorAll('.ch-col')];
       const col = e.target.closest?.('.ch-col') ?? cols.sort((a, b) => dist(a, e.clientX) - dist(b, e.clientX))[0];
-      if (col) burst(col);
+      if (col && burst(col)) flights.set(`${key}|${col.dataset.c}`, Date.now() + 900);
       taps++;
-      if (!tapTimer) tapTimer = setTimeout(() => { const n = Math.min(taps, 50); taps = 0; tapTimer = null; sendFn?.({ type: 'tap', n }); }, 1100); // après la retombée des jetons
+      showMyTaps();
+      // Premier clic envoyé tout de suite, les suivants par paquets toutes les 400 ms.
+      if (!tapTimer) { flushTaps(); tapTimer = setTimeout(function again() { if (taps) { flushTaps(); tapTimer = setTimeout(again, 400); } else tapTimer = null; }, 400); }
     });
     return node;
+  }
+
+  function flushTaps() {
+    if (!taps) return;
+    const n = Math.min(taps, 50);
+    taps -= n;
+    inflight += n;
+    sendFn?.({ type: 'tap', n });
+  }
+
+  // Mon compteur affiché tout de suite, sans attendre le serveur.
+  function showMyTaps() {
+    if (myIdx == null) return;
+    for (const b of document.querySelectorAll(`[data-ch-taps="${myIdx}"]`)) {
+      b.textContent = `👆 ${short((lastMyTaps ?? 0) + inflight + taps)}`;
+      b.classList.remove('bump');
+      void b.offsetWidth; // relance l'animation
+      b.classList.add('bump');
+    }
   }
 
   const dist = (node, x) => { const r = node.getBoundingClientRect(); return Math.abs(r.left + r.width / 2 - x); };
@@ -130,9 +187,9 @@
   // Simulation simple (requestAnimationFrame), sans image ni bibliothèque. La colonne disparaît
   // le temps du vol puis se reforme.
   function burst(col) {
-    if (calm() || col.dataset.flying) return;
+    if (calm() || col.dataset.flying) return false;
     const discs = [...col.querySelectorAll('.ch-disc')];
-    if (!discs.length) return;
+    if (!discs.length) return false;
     const count = Math.min(Math.max(discs.length, Number(col.dataset.n) || 0), 24);
     const H = window.innerHeight, W = window.innerWidth;
     const layer = el('div', 'ch-burst');
@@ -143,8 +200,9 @@
       const from = discs[Math.min(k, discs.length - 1)].getBoundingClientRect();
       const c = el('i', 'ch-flyer');
       c.style.setProperty('--c', col.dataset.c);
-      c.style.width = `${Math.max(24, from.width)}px`;
-      c.style.height = `${Math.max(8, from.height)}px`;
+      c.style.setProperty('--s', col.dataset.s);
+      const size = Math.max(26, from.width * 0.85);
+      c.style.width = c.style.height = `${size}px`;
       layer.append(c);
       bits.push({
         node: c, x: from.left, y: from.top - (k - discs.length + 1 > 0 ? (k - discs.length + 1) * from.height * 0.5 : 0),
@@ -175,6 +233,7 @@
     requestAnimationFrame(step);
     // La pile se reforme (si la page n'a pas déjà été redessinée entre-temps).
     setTimeout(() => { col.style.visibility = ''; delete col.dataset.flying; col.classList.add('ch-reform'); }, 900);
+    return true;
   }
 
   // Œuf lancé depuis le bas de l'écran vers le siège visé.
@@ -298,15 +357,27 @@
     else if (p.allIn && p.inHand) tag = ['tapis', 'allin'];
     else if (!p.inHand && p.chips === 0) tag = ['à sec', ''];
     if (tag) node.append(el('span', 'ch-tag ' + tag[1], tag[0]));
-    badges(node, p);
+    badges(node, p, i, s);
     node.setAttribute('aria-label', `${nm(table, i)}, ${p.chips} jetons${tag ? `, ${tag[0]}` : ''}${p.taps ? `, ${p.taps} clics` : ''}${p.eggs ? ', plein d’œuf' : ''}`);
     return node;
   }
 
   // Compteur de clics sur les jetons et œuf reçu, accrochés à côté du siège.
-  function badges(node, p) {
-    if (p.taps) node.append(el('span', 'ch-taps', `👆 ${short(p.taps)}`));
+  // Le compteur est toujours affiché (même à 0) ; il « saute » quand il augmente.
+  function badges(node, p, i, s) {
+    const mine = i === myIdx;
+    const value = mine ? p.taps + inflight + taps : p.taps;
+    const b = el('span', 'ch-taps' + (shownTaps[i] !== undefined && value > shownTaps[i] ? ' bump' : ''), `👆 ${short(value)}`);
+    b.dataset.chTaps = i;
+    shownTaps[i] = value;
+    node.append(b);
     if (p.eggs) node.append(el('span', 'ch-egged', '🍳'));
+    if (p.shield > 0) {
+      const sh = el('span', 'ch-shield', '🛡');
+      sh.dataset.chUntil = arrived.get(s) + p.shield;
+      node.append(sh);
+      startTicker();
+    }
   }
 
   // Plaque du croupier, à sa place autour de la table.
@@ -315,7 +386,7 @@
     if (opts.onClick) { node.type = 'button'; node.addEventListener('click', opts.onClick); }
     node.dataset.chSeat = s.croupier;
     node.append(el('span', 'ch-face', '🎩'), el('span', 'ch-name', s.isCroupier ? 'Toi' : nm(table, s.croupier)), el('span', 'ch-amt', 'croupier'));
-    badges(node, s.players[s.croupier]);
+    badges(node, s.players[s.croupier], s.croupier, s);
     return node;
   }
 
@@ -370,12 +441,45 @@
   // Pot et rue en cours, au centre du feutre.
   function potBlock(s) {
     const box = el('div', 'ch-pot');
-    if (s.pot > 0) box.append(tappable(stack(s.pot, 'pot', 4)), el('div', 'ch-potnum', fmt(s.pot)));
+    if (s.pot > 0) box.append(tappable(stack(s.pot, 'pot', 4), 'pot'), el('div', 'ch-potnum', fmt(s.pot)));
     const parts = [];
     if (s.street) parts.push(STREET[s.street]);
     parts.push(`blindes ${s.config.sb}/${s.config.bb}`);
     box.append(el('div', 'ch-street', parts.join(' · ')));
-    if (s.clock) box.append(clockNote(s));
+    return box;
+  }
+
+  // Chrono des blindes posé sur la table : niveau, blindes, temps restant. Le croupier peut le
+  // mettre en pause et passer à la blinde suivante d'un toucher.
+  function chrono(s, send) {
+    const c = s.clock;
+    if (!c) return null;
+    const lv = c.levels[c.level], nx = c.levels[c.level + 1];
+    const fresh = Date.now() - levelUpAt < 4000;
+    const box = el('div', 'ch-chrono' + (c.paused ? ' paused' : '') + (fresh ? ' up' : ''));
+    box.append(el('div', 'ch-chrono-lv', fresh ? `Niveau ${c.level + 1} · les blindes montent !` : `Niveau ${c.level + 1}`));
+    const row = el('div', 'ch-chrono-row');
+    row.append(el('b', 'ch-chrono-bl', `${fmt(lv.sb)}/${fmt(lv.bb)}`));
+    const t = el('b', 'ch-chrono-t', mmss(c.left));
+    if (c.started && !c.paused) {
+      const end = arrived.get(s) + c.left;
+      t.dataset.chDeadline = end;
+      t.textContent = end > Date.now() ? mmss(end - Date.now()) : '0:00';
+      if (s.isCroupier) t.dataset.chChime = '1';
+      startTicker();
+    }
+    row.append(t);
+    box.append(row);
+    box.append(el('div', 'ch-chrono-nx', c.paused ? '⏸ en pause' : !c.started ? 'démarre à la 1re main' : nx ? `puis ${fmt(nx.sb)}/${fmt(nx.bb)}` : 'dernier niveau'));
+    if (s.isCroupier && send) {
+      const ctl = el('div', 'ch-chrono-ctl');
+      ctl.append(
+        button(c.paused ? '▶' : '⏸', () => send({ type: 'pause', on: !c.paused }), 'ch-chrono-btn', !c.started),
+        button('Blinde suivante ⏭', () => send({ type: 'level', delta: 1 }), 'ch-chrono-btn next', !nx),
+      );
+      ctl.firstChild.setAttribute('aria-label', c.paused ? 'Reprendre l’horloge' : 'Mettre l’horloge en pause');
+      box.append(ctl);
+    }
     return box;
   }
 
@@ -386,8 +490,8 @@
     box.append(el('span', null, `Niv. ${c.level + 1}`));
     const t = el('b', null, mmss(c.left));
     if (c.started && !c.paused) {
-      t.dataset.chDeadline = deadlines.get(s);
-      t.textContent = mmss(deadlines.get(s) - Date.now());
+      t.dataset.chDeadline = arrived.get(s) + c.left;
+      t.textContent = mmss(arrived.get(s) + c.left - Date.now());
       startTicker();
     }
     box.append(t);
@@ -402,16 +506,20 @@
     if (ticker) return;
     ticker = setInterval(() => {
       const nodes = document.querySelectorAll('[data-ch-deadline]');
-      if (!nodes.length) { clearInterval(ticker); ticker = null; return; }
+      const shields = document.querySelectorAll('[data-ch-until]');
+      if (!nodes.length && !shields.length) { clearInterval(ticker); ticker = null; return; }
       for (const n of nodes) {
         const left = Number(n.dataset.chDeadline) - Date.now();
         n.textContent = left > 0 ? mmss(left) : 'fin du niveau';
+        // Fin du niveau vue en direct par le croupier : petit signal sonore, une seule fois.
+        if (left <= 0 && left > -1500 && n.dataset.chChime && !n.dataset.rang) { n.dataset.rang = '1'; chime([784, 659]); }
       }
+      for (const n of shields) if (Number(n.dataset.chUntil) <= Date.now()) n.remove();
     }, 1000);
   }
 
   function blindNote(s) {
-    if (s.clock) return clockNote(s);
+    if (s.clock) return null; // le chrono est affiché à part
     if (!s.config.blindEvery || !s.handNo) return null;
     const left = s.config.blindEvery - ((s.handNo - 1) % s.config.blindEvery) - 1;
     return el('div', 'ch-note', left > 0 ? `Blindes doublées dans ${left} main${left > 1 ? 's' : ''}` : 'Blindes doublées à la prochaine main');
@@ -435,6 +543,7 @@
 
     const bar = el('div', zoom ? 'ch-zoombar' : 'ch-bar');
     bar.append(el('span', 'ch-hand', s.handNo ? `Main n° ${s.handNo}${s.street ? '' : ' terminée'}` : 'Nouvelle partie'));
+    bar.append(el('span', 'ch-stock', `🥚 ×${s.players[s.croupier].eggStock}`));
     const tools = el('span', 'ch-tools');
     tools.append(
       button(zoom ? '✕ Sortir' : '⛶ Gros plan', () => setZoom(!zoom), 'ch-menu-btn'),
@@ -470,14 +579,16 @@
       go.append(el('span', 'ch-go-main', s.phase === 'setup' ? 'Commencer' : 'Main suivante'));
       go.append(el('span', 'ch-go-sub', `Main n° ${s.handNo + 1}`));
       go.addEventListener('click', () => send({ type: 'start' }));
-      center = [s.phase === 'between' ? resultLines(table, s) : null, go, blindNote(s)];
+      center = [chrono(s, send), s.phase === 'between' ? resultLines(table, s) : null, go, blindNote(s)];
       seatOpts = () => ({});
     } else {
       const turn = s.turn >= 0 ? logLine(table, `Au tour de @${s.turn}`) : null;
       if (turn) turn.className = 'ch-note';
-      center = [potBlock(s), turn];
+      center = [chrono(s, send), potBlock(s), turn];
     }
+    if (s.phase === 'showdown') center.unshift(chrono(s, send));
     root.append(drawTable(table, s, center, seatOpts));
+    if (s.clock) root.lastChild.classList.add('has-chrono');
     if (!zoom) {
       if (idle) root.append(el('div', 'ch-tip', 'Touche un joueur pour le recaver, le mettre absent… ou lui lancer un œuf.'));
       root.append(logBox(table, s));
@@ -532,6 +643,12 @@
     head.append(el('h3', null, 'Réglages de la partie'), button('Fermer', close, 'ch-close'));
     sheet.append(head);
     if (!idle) sheet.append(el('p', 'ch-lock', 'Une main est en cours : recaves et réglages se font entre deux mains.'));
+    if (!draftSeen) {
+      Object.assign(draft, { stack: s.config.stack, sb: s.config.sb, bb: s.config.bb, every: s.config.blindEvery });
+      draftSeen = true;
+    }
+    const setup = s.phase === 'setup';
+    sheet.append(durationSection(s, send, setup, idle));
 
     // Recave / correction de jetons.
     const seats = s.players.map((p, i) => i).filter((i) => !s.players[i].left && i !== s.croupier);
@@ -562,13 +679,7 @@
     sheet.append(rebuy);
 
     // Réglages de la partie.
-    if (!draftSeen) {
-      Object.assign(draft, { stack: s.config.stack, sb: s.config.sb, bb: s.config.bb, every: s.config.blindEvery });
-      draftSeen = true;
-    }
     if (s.clock) Object.assign(draft, { sb: s.config.sb, bb: s.config.bb }); // blindes fixées par l'horloge
-    const setup = s.phase === 'setup';
-    sheet.append(durationSection(s, send, setup));
     const conf = el('section', 'ch-sec');
     conf.append(el('h4', null, 'Partie'));
     const grid = el('div', 'ch-grid');
@@ -584,35 +695,45 @@
     conf.append(apply);
     sheet.append(conf);
 
-    if (s.phase !== 'betting') {
-      const end = el('section', 'ch-sec');
-      end.append(el('h4', null, 'Fin'));
-      end.append(button('Terminer la partie', () => { if (confirm('Terminer la partie pour tout le monde ?')) { menuOpen = false; send({ type: 'end' }); } }, 'ch-danger'));
-      sheet.append(end);
-    }
+    const end = el('section', 'ch-sec');
+    end.append(el('h4', null, 'Recommencer ou terminer'));
+    end.append(confirmButton('restart', '↺ Recommencer la partie', 'Toucher encore : tout le monde repart avec le tapis de départ', () => send({ type: 'restart' })));
+    if (s.phase !== 'betting') end.append(confirmButton('end', 'Terminer la partie', 'Toucher encore pour terminer la partie', () => send({ type: 'end' })));
+    sheet.append(end);
     veil.append(sheet);
     return veil;
   }
 
-  // Durée de la partie : choix au départ (structure de blindes calculée par le serveur), puis
+  // Bouton à double toucher : le premier arme (4 s), le second exécute.
+  function confirmButton(key, label, armed, run) {
+    const on = confirmUntil[key] > Date.now();
+    return button(on ? armed : label, () => {
+      if (confirmUntil[key] > Date.now()) { confirmUntil[key] = 0; menuOpen = false; run(); return; }
+      confirmUntil[key] = Date.now() + 4000;
+      GPGames.refresh();
+      setTimeout(() => GPGames.refresh(), 4100);
+    }, 'ch-danger' + (on ? ' armed' : ''));
+  }
+
+  // Durée de la partie : choix d'une durée (structure de blindes calculée par le serveur), puis
   // horloge en cours avec pause et passage au niveau suivant.
-  function durationSection(s, send, setup) {
-    const sec = el('section', 'ch-sec');
-    sec.append(el('h4', null, 'Durée de la partie'));
-    if (setup) {
-      const presets = el('div', 'ch-presets');
-      for (const m of [0, 30, 45, 60, 90, 120, 180, 240]) {
-        const on = s.config.duration === m;
-        presets.append(button(m ? durLabel(m) : 'Libre', () => send({ type: 'config', stack: Number(draft.stack) || s.config.stack, duration: m }), 'ch-preset' + (on ? ' on' : '')));
-      }
-      sec.append(presets);
-      sec.append(el('p', 'ch-help', s.clock
-        ? 'Les blindes montent toutes seules pour finir à l’heure : départ à ~100 grosses blindes, niveaux calculés d’après le tapis et le nombre de joueurs.'
-        : 'Libre : blindes réglées à la main (ou doublées toutes les N mains).'));
+  function durationSection(s, send, setup, idle) {
+    const sec = el('section', 'ch-sec ch-sec-time');
+    sec.append(el('h4', null, '⏱ Durée de la partie'));
+    const presets = el('div', 'ch-presets');
+    for (const m of [0, 30, 45, 60, 90, 120, 180, 240]) {
+      const on = s.config.duration === m;
+      presets.append(button(m ? durLabel(m) : 'Libre', () => send({ type: 'config', ...(setup ? { stack: Number(draft.stack) || s.config.stack } : {}), duration: m }), 'ch-preset' + (on ? ' on' : ''), !idle));
     }
+    sec.append(presets);
+    sec.append(el('p', 'ch-help', !s.clock
+      ? 'Choisis une durée : les blindes sont calculées pour finir à l’heure et montent toutes seules. Libre : blindes à la main.'
+      : setup
+        ? 'Départ à ~100 grosses blindes ; niveaux calculés d’après le tapis et le nombre de joueurs. L’horloge part à la 1re main.'
+        : 'Changer la durée maintenant recalcule les niveaux à partir des blindes actuelles ; l’horloge repart tout de suite.'));
     const c = s.clock;
     if (!c) return sec;
-    sec.append(el('p', 'ch-help', `${c.planned} niveaux de ${c.levelMin} min prévus${setup ? '' : ' (+ prolongations)'} · ${durLabel(c.planned * c.levelMin)}`));
+    sec.append(el('p', 'ch-plan', `${c.planned} niveaux de ${c.levelMin} min · ${durLabel(c.planned * c.levelMin)} (+ prolongations)`));
     const now = el('div', 'ch-clockbox');
     now.append(el('b', null, `${c.levels[c.level].sb}/${c.levels[c.level].bb}`), clockNote(s));
     sec.append(now);
@@ -625,7 +746,11 @@
     row.firstChild.setAttribute('aria-label', 'Niveau précédent');
     sec.append(row);
     const list = el('ol', 'ch-levels');
-    c.levels.forEach((l, k) => list.append(el('li', k === c.level ? 'on' : k >= c.planned ? 'extra' : k < c.level ? 'done' : '', `${l.sb}/${l.bb}`)));
+    c.levels.forEach((l, k) => {
+      const li = el('li', k === c.level ? 'on' : k >= c.planned ? 'extra' : k < c.level ? 'done' : '');
+      li.append(el('small', null, `${durLabel(k * c.levelMin).replace(/^0 min$/, 'départ')}`), el('b', null, `${fmt(l.sb)}/${fmt(l.bb)}`));
+      list.append(li);
+    });
     sec.append(list);
     return sec;
   }
@@ -645,7 +770,10 @@
     head.append(title, el('span', 'ch-amt', i === s.croupier ? 'croupier' : `${fmt(p.chips)} jetons`));
     sheet.append(head);
     if (p.taps) sheet.append(el('p', 'ch-help', `👆 ${fmt(p.taps)} clics sur les jetons`));
-    const egg = button('🥚 Lancer un œuf', () => { pop = -1; flyTo = i; send({ type: 'egg', player: i }); GPGames.refresh(); }, 'ch-egg-btn');
+    const stock = s.players[table.me].eggStock;
+    const shielded = p.shield > 0 && arrived.get(s) + p.shield > Date.now();
+    const label = stock <= 0 ? '🥚 Plus d’œufs (gagne une main !)' : shielded ? '🛡 Protégé : il vient de se nettoyer' : `🥚 Lancer un œuf · il t’en reste ${stock}`;
+    const egg = button(label, () => { pop = -1; flyTo = i; send({ type: 'egg', player: i }); GPGames.refresh(); }, 'ch-egg-btn', stock <= 0 || shielded);
     sheet.append(egg);
     if (s.isCroupier && i !== s.croupier) {
       sheet.append(button('💰 Recave, absence…', () => { pop = -1; target = i; menuOpen = true; GPGames.refresh(); }, 'sec'));
@@ -690,10 +818,11 @@
     const crou = nm(table, s.croupier);
 
     let center;
-    if (s.phase === 'betting') center = [potBlock(s)];
-    else if (s.phase === 'showdown') center = [potBlock(s), el('div', 'ch-note', `Abattage : ${crou} désigne le gagnant…`)];
-    else center = [resultLines(table, s), el('div', 'ch-note', s.phase === 'setup' ? `${crou} règle la partie…` : `${crou} prépare la main suivante…`), blindNote(s)];
+    if (s.phase === 'betting') center = [chrono(s), potBlock(s)];
+    else if (s.phase === 'showdown') center = [chrono(s), potBlock(s), el('div', 'ch-note', `Abattage : ${crou} désigne le gagnant…`)];
+    else center = [chrono(s), resultLines(table, s), el('div', 'ch-note', s.phase === 'setup' ? `${crou} règle la partie…` : `${crou} prépare la main suivante…`), blindNote(s)];
     root.append(drawTable(table, s, center));
+    if (s.clock) root.lastChild.classList.add('has-chrono');
 
     if (me) root.append(dock(table, s, me, send));
     root.append(logBox(table, s));
@@ -706,7 +835,7 @@
     const mine = el('div', 'ch-mine');
     const num = el('div', 'ch-mine-num');
     num.append(el('b', null, fmt(me.chips)), el('span', null, me.bet > 0 ? ` · ${fmt(me.bet)} misés` : ' jetons'));
-    mine.append(tappable(stack(me.chips, 'mine', 5)), num);
+    mine.append(tappable(stack(me.chips, 'mine', 5), 'mine'), num, el('span', 'ch-stock', `🥚 ×${me.eggStock}`));
     box.append(mine);
 
     const h = s.hints;
@@ -777,6 +906,7 @@
       const b = el('button', 'ch-tap', String(d.v));
       b.type = 'button';
       b.style.setProperty('--c', d.c);
+      b.style.setProperty('--s', d.s);
       b.setAttribute('aria-label', `Ajouter ${d.v}`);
       b.addEventListener('click', () => set(raiseTo + d.v));
       tray.append(b);
@@ -826,7 +956,22 @@
     const { table, send } = ctx;
     const s = table.state;
     sendFn = table.spectator ? null : send;
-    if (s.clock && !deadlines.has(s)) deadlines.set(s, Date.now() + s.clock.left);
+    const fresh = !arrived.has(s);
+    if (fresh) arrived.set(s, Date.now());
+    myIdx = table.spectator ? null : table.me;
+    if (fresh && myIdx != null) {
+      // Mes clics confirmés par le serveur sortent du compte « en vol ».
+      const server = s.players[myIdx].taps;
+      if (lastMyTaps !== null && server >= lastMyTaps) inflight = Math.max(0, inflight - (server - lastMyTaps));
+      else inflight = 0; // nouvelle partie
+      lastMyTaps = server;
+    }
+    // Passage au niveau de blindes suivant : son et bandeau sur le chrono.
+    if (fresh) {
+      const lv = s.clock ? s.clock.level : null;
+      if (lv !== null && lastLevel !== null && lv > lastLevel) { levelUpAt = Date.now(); chime(); navigator.vibrate?.([80, 60, 80]); setTimeout(() => GPGames.refresh(), 4100); }
+      lastLevel = lv;
+    }
     if (!s.isCroupier) menuOpen = false;
     if (zoom && (!s.isCroupier || s.phase === 'over')) setZoom(false, false); // déjà en plein rendu
     if (!s.hints.actions.includes('raise')) raiseOpen = false;
