@@ -3,8 +3,9 @@
 // poker jouée avec de VRAIES cartes (2 à 10 joueurs). Aucune carte ici : le serveur ne
 // connaît pas les mains, c'est le croupier qui désigne le ou les gagnants de chaque pot à
 // l'abattage.
-//   Croupier : par défaut l'hôte de la table ; tout joueur peut le devenir entre deux mains.
-//   Il règle la partie (tapis de départ, blindes, hausse automatique), lance les mains,
+//   Croupier : un téléphone à part qui NE JOUE PAS (pas de jetons, jamais dans une main). C'est
+//   l'hôte de la table par défaut ; avant la première main, un autre joueur peut le devenir (l'ancien
+//   croupier devient joueur). Il règle la partie (tapis de départ, blindes, hausse automatique), lance les mains,
 //   distribue les pots, corrige les jetons (recave, erreur) et clôt la partie.
 //   Mains : blindes, enchères pré-flop / flop / turn / river (No-Limit), abattage.
 //   Actions : se coucher, parole (check), suivre, relancer (montant total de la mise du
@@ -37,7 +38,7 @@ function init(ids) {
     minRaise: DEFAULTS.bb,
     result: null,
     log: [],
-    players: ids.map(() => ({ chips: DEFAULTS.stack, bet: 0, total: 0, folded: false, allIn: false, inHand: false, acted: false, noRaise: false, sitOut: false, left: false })),
+    players: ids.map((_, i) => ({ chips: i === 0 ? 0 : DEFAULTS.stack, bet: 0, total: 0, folded: false, allIn: false, inHand: false, acted: false, noRaise: false, sitOut: false, left: false })),
   };
 }
 
@@ -91,7 +92,7 @@ function pots(st) {
 
 function startHand(st) {
   const cfg = st.config;
-  const players = st.players.map((p, i) => i).filter((i) => !st.players[i].left && !st.players[i].sitOut && st.players[i].chips > 0);
+  const players = st.players.map((p, i) => i).filter((i) => i !== st.croupier && !st.players[i].left && !st.players[i].sitOut && st.players[i].chips > 0);
   if (players.length < 2) return fail('not-enough');
   st.handNo++;
   if (cfg.blindEvery > 0 && st.handNo > 1 && (st.handNo - 1) % cfg.blindEvery === 0) {
@@ -253,7 +254,7 @@ function config(st, a) {
   if (!isInt(stack, 1, 1e7)) return fail('bad-amount');
   if (st.phase !== 'setup' && a.stack !== undefined && a.stack !== c.stack) return fail('hand-running');
   Object.assign(c, { sb, bb, blindEvery: every, stack });
-  if (st.phase === 'setup') for (const p of st.players) p.chips = stack;
+  if (st.phase === 'setup') st.players.forEach((p, i) => { p.chips = i === st.croupier ? 0 : stack; });
   say(st, `Réglages : tapis ${stack}, blindes ${sb}/${bb}${every ? `, doublées toutes les ${every} mains` : ''}.`);
   return ok();
 }
@@ -286,7 +287,7 @@ function award(st, a) {
 function give(st, a) {
   if (!idleOrSetup(st)) return fail('hand-running');
   const p = st.players[a.player];
-  if (!p || p.left) return fail('bad-target');
+  if (!p || p.left || a.player === st.croupier) return fail('bad-target');
   if (!Number.isInteger(a.amount) || a.amount === 0 || Math.abs(a.amount) > MAX_CHIPS || p.chips + a.amount < 0 || p.chips + a.amount > MAX_CHIPS) return fail('bad-amount');
   p.chips += a.amount;
   say(st, `@${a.player} ${a.amount > 0 ? 'reçoit' : 'rend'} ${Math.abs(a.amount)} jetons (croupier).`);
@@ -310,7 +311,12 @@ function action(st, idx, a) {
 
   // Actions de tout joueur
   if (a.type === 'croupier') {
-    if (!idleOrSetup(st)) return fail('hand-running');
+    if (st.phase !== 'setup') return fail('game-running');
+    if (idx === st.croupier) return ok();
+    // L'ancien croupier devient joueur ; le nouveau pose ses jetons.
+    st.players[st.croupier].chips = st.config.stack;
+    st.players[idx].chips = 0;
+    st.players[idx].sitOut = false;
     st.croupier = idx;
     say(st, `@${idx} devient croupier.`);
     return ok();
@@ -320,7 +326,7 @@ function action(st, idx, a) {
     // Soi-même, ou n'importe qui si on est croupier.
     const who = idx === st.croupier && Number.isInteger(a.player) ? a.player : idx;
     const p = st.players[who];
-    if (!p || p.left) return fail('bad-target');
+    if (!p || p.left || who === st.croupier) return fail('bad-target');
     p.sitOut = !!a.out;
     return ok();
   }
@@ -343,10 +349,14 @@ function onLeave(st, idx) {
   if (st.croupier === idx) {
     const heir = seatAfter(st, idx, (i, q) => !q.left);
     if (heir === -1) { st.phase = 'over'; return; }
+    // L'héritier arrête de jouer : couché s'il est dans la main, ses jetons sortent du jeu.
+    const h = st.players[heir];
+    if (st.phase === 'betting' && h.inHand && !h.folded) h.folded = true;
+    h.chips = 0; h.sitOut = true;
     st.croupier = heir;
     say(st, `@${heir} devient croupier.`);
   }
-  if (present(st).length < 1) { st.phase = 'over'; return; }
+  if (present(st).length < 2) { st.phase = 'over'; return; }
   if (st.phase === 'betting') {
     settle(st);
   } else if (st.phase === 'showdown' && pots(st).length === 0) {
@@ -397,8 +407,8 @@ const nextFirst = (st, first) => first;
 module.exports = {
   id: 'chips',
   name: 'Jetons de poker',
-  minPlayers: 2,
-  maxPlayers: 10,
+  minPlayers: 3, // croupier + 2 joueurs
+  maxPlayers: 11, // croupier + 10 joueurs
   autoStart: false,
   init, action, view, isOver, nextFirst, onLeave,
   _internal: { pots, DEFAULTS },

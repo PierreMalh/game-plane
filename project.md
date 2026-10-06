@@ -399,9 +399,11 @@ Audit par captures d'écran à 390 px de large (taille d'un téléphone) de chaq
 - **Moteur** `server/games/poker-chips.js`, enregistré comme un jeu à effectif variable
   (`autoStart: false`, 2–10) : lobby, tables, chat, spectateurs et reconnexion sont réutilisés tels quels.
   Phases : `setup → betting → showdown | between → … → over`.
-- **Croupier** : l'hôte (index 0) au départ ; n'importe quel joueur peut le réclamer en `setup`/`between`
-  (jamais en pleine main : l'abattage a besoin d'un croupier stable). S'il quitte, le suivant le devient.
-  Seul le croupier peut `config`, `start`, `award`, `give`, `end`. Il peut aussi jouer.
+- **Croupier** : un **téléphone à part qui ne joue pas** (précisé après coup : 0 jeton, jamais dans une main,
+  un siège de plus à la table, donc 3 à 11 sièges). L'hôte (index 0) au départ ; réclamable seulement en
+  `setup` (l'ancien croupier devient joueur et reçoit le tapis). S'il quitte, le suivant le devient : couché,
+  ses jetons sortent du jeu.
+  Seul le croupier peut `config`, `start`, `award`, `give`, `end`.
 - **Enchères** : No-Limit, relance = « montant total de la mise du tour », relance minimale = dernière
   relance (≥ grosse blinde), tapis incomplet qui ne rouvre pas les enchères (`noRaise`), tête-à-tête avec
   le bouton petite blinde. Tout est en entiers. Même logique que `poker.js`, réécrite pour ne dépendre
@@ -421,7 +423,7 @@ Audit par captures d'écran à 390 px de large (taille d'un téléphone) de chaq
   (valeurs 1/5/25/100/500/1000, 6 jetons max par colonne puis « ×n ») pour le pot, les tapis et la mise ;
   un plateau de jetons à toucher compose la mise (somme bornée entre relance minimale et tapis), avec
   curseur et raccourcis Min/½ pot/Pot/Tapis. Les saisies du croupier survivent aux rafraîchissements.
-- **Tests** : 11 (`test/poker-chips.test.js`) dont des parties aléatoires vérifiant la conservation des
+- **Tests** : 12 (`test/poker-chips.test.js`) dont des parties aléatoires vérifiant la conservation des
   jetons à chaque action. Vérifié dans Chromium à 390 px à 3 joueurs (réglage, main, relance au plateau),
   aucune erreur JS.
 - **Limites** : pas d'ajout de joueur une fois la partie lancée (comportement des tables) ; pas de

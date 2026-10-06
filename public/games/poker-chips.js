@@ -26,6 +26,7 @@
     'hand-running': 'Impossible pendant une main.',
     'not-croupier': 'Réservé au croupier.',
     'not-enough': 'Il faut au moins 2 joueurs avec des jetons.',
+    'game-running': 'Le croupier ne peut plus changer une fois la partie commencée.',
     'bad-target': 'Joueur introuvable.',
   };
   const STREET = { preflop: 'Pré-flop', flop: 'Flop', turn: 'Turn', river: 'River' };
@@ -125,7 +126,8 @@
   function drawPlayers(table, s) {
     const box = el('div', 'cp-box cp-players');
     s.players.forEach((p, i) => {
-      const out = p.left || p.sitOut || (!p.inHand && p.chips === 0);
+      const isC = i === s.croupier;
+      const out = !isC && (p.left || p.sitOut || (!p.inHand && p.chips === 0));
       const row = el('div', 'cp-p' + (i === s.turn && s.phase === 'betting' ? ' turn' : '') + (out || (p.inHand && p.folded) ? ' out' : ''));
       const dot = el('i');
       dot.style.background = color(i);
@@ -134,6 +136,7 @@
       if (i === s.croupier) row.append(el('span', 'chip ch-croupier', 'croupier'));
       const chips = el('span', 'chips');
       if (p.left) chips.append(el('span', 'chip', 'parti'));
+      else if (isC) chips.append(el('span', 'chip', 'ne joue pas'));
       else {
         if (p.sitOut) chips.append(el('span', 'chip', 'absent'));
         else if (p.chips === 0 && !p.inHand) chips.append(el('span', 'chip', 'à sec'));
@@ -143,7 +146,7 @@
         chips.append(el('span', 'chip ch-stacknum', `${p.chips} 🪙`));
       }
       row.append(chips);
-      if (!p.left && p.chips > 0) row.append(stack(p.chips, true));
+      if (!p.left && !isC && p.chips > 0) row.append(stack(p.chips, true));
       box.append(row);
     });
     return box;
@@ -254,7 +257,7 @@
     const box = el('div', 'ch-form');
     box.append(el('div', 'hint', 'Recave / correction de jetons :'));
     const sel = el('select');
-    s.players.forEach((p, i) => { if (!p.left) { const o = el('option', null, nm(table, i)); o.value = i; sel.append(o); } });
+    s.players.forEach((p, i) => { if (!p.left && i !== s.croupier) { const o = el('option', null, nm(table, i)); o.value = i; sel.append(o); } });
     sel.value = draft.player;
     sel.addEventListener('change', () => { draft.player = sel.value; });
     box.append(sel, number('amount', 'Montant'));
@@ -335,7 +338,7 @@
     box.append(el('div', 'cp-info', s.phase === 'setup'
       ? `${nm(table, s.croupier)} règle la partie…` : `${nm(table, s.croupier)} prépare la prochaine main…`));
     const btns = el('div', 'cp-btns');
-    btns.append(button('Devenir croupier', () => send({ type: 'croupier' }), 'sec'));
+    if (s.phase === 'setup') btns.append(button('Devenir croupier (ce téléphone ne jouera pas)', () => send({ type: 'croupier' }), 'sec'));
     btns.append(button(me.sitOut ? 'Revenir à la table' : 'Sauter les prochaines mains', () => send({ type: 'sitout', out: !me.sitOut }), 'sec'));
     if (idle) box.append(btns);
     return box;
@@ -364,8 +367,7 @@
     } else {
       root.append(drawFelt(s), drawPlayers(table, s));
       if (!table.spectator) {
-        const mine = drawMine(table, s, send);
-        root.append(mine);
+        if (!s.isCroupier) root.append(drawMine(table, s, send));
         const idle = s.phase === 'setup' || s.phase === 'between';
         if (s.phase === 'between') { const r = drawResult(table, s); if (r) root.append(r); }
         if (s.isCroupier) root.append(drawCroupier(table, s, send));
@@ -387,7 +389,7 @@
   GPGames.register({
     id: 'chips',
     name: 'Jetons de poker',
-    blurb: '2 à 10 joueurs · jetons, mises, blindes et pots pour jouer au poker avec de vraies cartes · l’hôte lance',
+    blurb: 'Jusqu’à 10 joueurs + 1 croupier (téléphone à part) · jetons, mises, blindes et pots pour jouer au poker avec de vraies cartes · l’hôte lance',
     errors: ERRORS,
     leaveWarning: 'Quitter la table ? Tu te couches et tes jetons sortent du jeu.',
     isMyTurn: (table) => table.state.hints.actions.length > 0 || (table.state.isCroupier && table.state.phase === 'showdown'),

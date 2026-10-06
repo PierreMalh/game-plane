@@ -6,17 +6,19 @@ const g = require('../server/games/poker-chips');
 const must = (res, msg) => assert.equal(res.ok, true, `${msg ?? ''} refusé : ${res.error}`);
 const act = (st, who, type, extra = {}) => g.action(st, who, { type, ...extra });
 const total = (st) => st.players.reduce((s, p) => s + p.chips + p.total, 0);
+// k joueurs aux places 0..k-1 ; le croupier est une place de plus (index k), qui ne joue pas.
 const newGame = (k, cfg = {}) => {
-  const st = g.init(Array.from({ length: k }, (_, i) => `p${i}`));
-  if (Object.keys(cfg).length) must(act(st, 0, 'config', cfg));
+  const st = g.init(Array.from({ length: k + 1 }, (_, i) => `p${i}`));
+  must(act(st, k, 'croupier'));
+  if (Object.keys(cfg).length) must(act(st, st.croupier, 'config', cfg));
   return st;
 };
 
 test('réglages, puis main : blindes, tour de parole, conservation des jetons', () => {
   const st = newGame(4, { stack: 500, sb: 5, bb: 10 });
-  assert.ok(st.players.every((p) => p.chips === 500));
-  assert.equal(act(st, 1, 'start').error, 'not-croupier');
-  must(act(st, 0, 'start'));
+  assert.ok(st.players.every((p, i) => p.chips === (i === st.croupier ? 0 : 500)));
+  assert.equal(act(st, 0, 'start').error, 'not-croupier');
+  must(act(st, st.croupier, 'start'));
   // bouton sur le joueur 1 (premier assis après -1 → 0 ; ici dealer = 0)
   assert.equal(st.phase, 'betting');
   const d = st.dealer;
@@ -32,7 +34,7 @@ test('réglages, puis main : blindes, tour de parole, conservation des jetons', 
 
 test('main complète jusqu\'à l\'abattage, pot distribué par le croupier', () => {
   const st = newGame(3, { stack: 100, sb: 5, bb: 10 });
-  must(act(st, 0, 'start'));
+  must(act(st, st.croupier, 'start'));
   const [d] = [st.dealer];
   const sb = (d + 1) % 3, bb = (d + 2) % 3;
   must(act(st, d, 'call'));
@@ -46,9 +48,9 @@ test('main complète jusqu\'à l\'abattage, pot distribué par le croupier', () 
   assert.equal(st.phase, 'showdown');
   assert.equal(g.view(st, 0).pots.length, 1);
   assert.equal(g.view(st, 0).pot, 30);
-  assert.equal(act(st, 1, 'award', { winners: [[bb]] }).error, 'not-croupier');
-  assert.equal(act(st, 0, 'award', { winners: [[]] }).error, 'bad-winners');
-  must(act(st, 0, 'award', { winners: [[bb]] }));
+  assert.equal(act(st, 0, 'award', { winners: [[bb]] }).error, 'not-croupier');
+  assert.equal(act(st, st.croupier, 'award', { winners: [[]] }).error, 'bad-winners');
+  must(act(st, st.croupier, 'award', { winners: [[bb]] }));
   assert.equal(st.players[bb].chips, 120);
   assert.equal(st.phase, 'between');
   assert.equal(total(st), 300);
@@ -56,7 +58,7 @@ test('main complète jusqu\'à l\'abattage, pot distribué par le croupier', () 
 
 test('tous se couchent : le dernier remporte le pot sans abattage', () => {
   const st = newGame(3, { stack: 100, sb: 5, bb: 10 });
-  must(act(st, 0, 'start'));
+  must(act(st, st.croupier, 'start'));
   const d = st.dealer, sb = (d + 1) % 3, bb = (d + 2) % 3;
   must(act(st, d, 'raise', { to: 30 }));
   must(act(st, sb, 'fold'));
@@ -69,7 +71,7 @@ test('tous se couchent : le dernier remporte le pot sans abattage', () => {
 
 test('relance minimale, suivre, check interdit face à une mise', () => {
   const st = newGame(3, { stack: 200, sb: 5, bb: 10 });
-  must(act(st, 0, 'start'));
+  must(act(st, st.croupier, 'start'));
   const d = st.dealer;
   assert.equal(act(st, d, 'check').error, 'must-call');
   assert.equal(act(st, d, 'raise', { to: 15 }).error, 'raise-too-small');
@@ -83,9 +85,9 @@ test('relance minimale, suivre, check interdit face à une mise', () => {
 
 test('tapis inégaux : pots annexes, mise non suivie rendue', () => {
   const st = newGame(3, { stack: 100, sb: 5, bb: 10 });
-  must(act(st, 0, 'give', { player: 1, amount: -50 })); // p1 : 50
-  must(act(st, 0, 'give', { player: 2, amount: 100 })); // p2 : 200
-  must(act(st, 0, 'start'));
+  must(act(st, st.croupier, 'give', { player: 1, amount: -50 })); // p1 : 50
+  must(act(st, st.croupier, 'give', { player: 2, amount: 100 })); // p2 : 200
+  must(act(st, st.croupier, 'start'));
   // tout le monde fait tapis, un par un
   let guard = 0;
   while (st.phase === 'betting' && guard++ < 10) must(act(st, st.turn, 'allin'));
@@ -95,8 +97,8 @@ test('tapis inégaux : pots annexes, mise non suivie rendue', () => {
   assert.deepEqual(pots.map((p) => p.amount), [150, 100]);
   assert.deepEqual(pots[0].eligible.sort(), [0, 1, 2]);
   assert.deepEqual(pots[1].eligible.sort(), [0, 2]);
-  assert.equal(act(st, 0, 'award', { winners: [[1], [1]] }).error, 'bad-winners'); // p1 non éligible au 2e
-  must(act(st, 0, 'award', { winners: [[1], [0]] }));
+  assert.equal(act(st, st.croupier, 'award', { winners: [[1], [1]] }).error, 'bad-winners'); // p1 non éligible au 2e
+  must(act(st, st.croupier, 'award', { winners: [[1], [0]] }));
   assert.equal(st.players[1].chips, 150);
   assert.equal(st.players[0].chips, 100);
   assert.equal(st.players[2].chips, 100);
@@ -104,14 +106,14 @@ test('tapis inégaux : pots annexes, mise non suivie rendue', () => {
 
 test('égalité : partage, jeton impair au premier à gauche du bouton', () => {
   const st = newGame(3, { stack: 100, sb: 5, bb: 10 });
-  must(act(st, 0, 'start'));
+  must(act(st, st.croupier, 'start'));
   const d = st.dealer, sb = (d + 1) % 3, bb = (d + 2) % 3;
   must(act(st, d, 'call')); must(act(st, sb, 'call')); must(act(st, bb, 'check'));
   for (let s = 0; s < 3; s++) for (const who of [sb, bb, d]) must(act(st, who, 'check'));
   assert.equal(st.phase, 'showdown');
-  for (const p of st.players) { p.total += 1; p.chips -= 1; } // pot de 33 (impair) pour tester le partage
+  for (const p of st.players.slice(0, 3)) { p.total += 1; p.chips -= 1; } // pot de 33 (impair) pour tester le partage
   const before = st.players.map((p) => p.chips);
-  must(act(st, 0, 'award', { winners: [[bb, d]] }));
+  must(act(st, st.croupier, 'award', { winners: [[bb, d]] }));
   // d est après bb dans l'ordre à gauche du bouton ? bb = d+2 passe avant d (d+3)
   assert.equal(st.players[bb].chips - before[bb], 17);
   assert.equal(st.players[d].chips - before[d], 16);
@@ -119,36 +121,53 @@ test('égalité : partage, jeton impair au premier à gauche du bouton', () => {
 
 test('blindes automatiquement doublées, recave et sitout', () => {
   const st = newGame(2, { stack: 100, sb: 5, bb: 10, blindEvery: 2 });
-  must(act(st, 0, 'start'));
+  must(act(st, st.croupier, 'start'));
   must(act(st, st.turn, 'fold'));
-  must(act(st, 0, 'start'));
+  must(act(st, st.croupier, 'start'));
   assert.equal(st.config.bb, 10); // 2 mains par niveau
   must(act(st, st.turn, 'fold'));
-  must(act(st, 0, 'start'));
+  must(act(st, st.croupier, 'start'));
   assert.equal(st.config.bb, 20);
   must(act(st, st.turn, 'fold'));
   must(act(st, 1, 'sitout', { out: true }));
-  assert.equal(act(st, 0, 'start').error, 'not-enough');
+  assert.equal(act(st, st.croupier, 'start').error, 'not-enough');
   must(act(st, 1, 'sitout', { out: false }));
-  assert.equal(act(st, 0, 'give', { player: 1, amount: -99999 }).error, 'bad-amount');
-  assert.equal(act(st, 0, 'config', { stack: 5 }).error, 'hand-running'); // plus de changement de tapis après le début
+  assert.equal(act(st, st.croupier, 'give', { player: 1, amount: -99999 }).error, 'bad-amount');
+  assert.equal(act(st, st.croupier, 'config', { stack: 5 }).error, 'hand-running'); // plus de changement de tapis après le début
 });
 
-test('croupier : réclamer le rôle, passer la main, départ du croupier', () => {
-  const st = newGame(3);
-  must(act(st, 2, 'croupier'));
+test('croupier : téléphone à part qui ne joue pas, rôle réclamable avant la première main', () => {
+  const st = g.init(['a', 'b', 'c', 'd']);
+  assert.equal(st.croupier, 0);
+  assert.equal(st.players[0].chips, 0);
+  must(act(st, 2, 'croupier')); // l'ancien croupier devient joueur
   assert.equal(st.croupier, 2);
+  assert.equal(st.players[2].chips, 0);
+  assert.equal(st.players[0].chips, 1000);
   assert.equal(act(st, 0, 'start').error, 'not-croupier');
+  assert.equal(act(st, 2, 'give', { player: 2, amount: 10 }).error, 'bad-target');
+  assert.equal(act(st, 2, 'sitout', { player: 2, out: true }).error, 'bad-target');
   must(act(st, 2, 'start'));
-  assert.equal(act(st, 1, 'croupier').error, 'hand-running');
-  g.onLeave(st, 2);
-  assert.notEqual(st.croupier, 2);
-  assert.equal(st.players[2].folded, true);
+  for (const i of [0, 1, 3]) assert.equal(st.players[i].inHand, true);
+  assert.equal(st.players[2].inHand, false);
+  assert.notEqual(st.turn, 2);
+  assert.equal(act(st, 1, 'croupier').error, 'game-running');
+});
+
+test('le croupier part : un joueur le remplace et sort de la main', () => {
+  const st = newGame(3, { stack: 100, sb: 5, bb: 10 });
+  must(act(st, st.croupier, 'start'));
+  const old = st.croupier;
+  g.onLeave(st, old);
+  assert.notEqual(st.croupier, old);
+  assert.equal(st.players[st.croupier].folded, true);
+  assert.equal(st.players[st.croupier].chips, 0);
+  assert.equal(st.phase, 'betting');
 });
 
 test('quitter pendant son tour : la main continue', () => {
   const st = newGame(3, { stack: 100, sb: 5, bb: 10 });
-  must(act(st, 0, 'start'));
+  must(act(st, st.croupier, 'start'));
   const t = st.turn;
   g.onLeave(st, t);
   assert.notEqual(st.turn, t);
@@ -157,11 +176,11 @@ test('quitter pendant son tour : la main continue', () => {
 
 test('fin de partie et vue spectateur sans action', () => {
   const st = newGame(10);
-  assert.equal(g.maxPlayers, 10);
+  assert.equal(g.maxPlayers, 11);
   const v = g.view(st, -1);
   assert.deepEqual(v.hints.actions, []);
   assert.equal(v.isCroupier, false);
-  must(act(st, 0, 'end'));
+  must(act(st, st.croupier, 'end'));
   assert.equal(g.isOver(st), true);
 });
 
