@@ -217,3 +217,66 @@ test('conservation des jetons sur des mains aléatoires', () => {
     }
   }
 });
+
+test('durée de partie : structure de blindes croissante, niveaux au temps, pause et niveau suivant', () => {
+  const plan = g._internal.blindPlan(1000, 6, 120);
+  assert.equal(plan.levels[0].bb, 10);
+  assert.ok(plan.levels.every((l, k) => l.sb * 2 === l.bb && (k === 0 || l.bb > plan.levels[k - 1].bb)));
+  assert.ok(plan.levelMin >= 3 && plan.levelMin * plan.planned <= 140);
+
+  let t = 1e6;
+  g._internal.setNow(() => t);
+  try {
+    const st = newGame(3, { stack: 1000, duration: 60 });
+    const c = st.clock;
+    assert.ok(c);
+    assert.equal(st.config.bb, c.levels[0].bb);
+    assert.equal(g.view(st, 0).clock.started, false);
+    must(act(st, st.croupier, 'start'));
+    assert.equal(g.view(st, 0).clock.left, c.levelMs);
+    // Le niveau ne change qu'au début d'une main.
+    t += c.levelMs + 1;
+    for (const who of [0, 1, 2]) if (st.phase === 'betting') must(act(st, st.turn, 'fold'));
+    assert.equal(st.config.bb, c.levels[0].bb);
+    must(act(st, st.croupier, 'start'));
+    assert.equal(c.level, 1);
+    assert.equal(st.config.bb, c.levels[1].bb);
+    while (st.phase === 'betting') must(act(st, st.turn, 'fold'));
+    // Pause : le temps restant est figé.
+    must(act(st, st.croupier, 'pause', { on: true }));
+    const left = g.view(st, 0).clock.left;
+    t += 10 * c.levelMs;
+    assert.equal(g.view(st, 0).clock.left, left);
+    must(act(st, st.croupier, 'pause', { on: false }));
+    assert.equal(g.view(st, 0).clock.left, left);
+    // Niveau suivant à la main, appliqué tout de suite entre deux mains.
+    must(act(st, st.croupier, 'level', { delta: 1 }));
+    assert.equal(c.level, 2);
+    assert.equal(st.config.bb, c.levels[2].bb);
+    assert.equal(act(st, 0, 'level', { delta: 1 }).error, 'not-croupier');
+    // La durée ne se change plus une fois la partie lancée.
+    assert.equal(act(st, st.croupier, 'config', { duration: 90 }).error, 'hand-running');
+  } finally {
+    g._internal.setNow(() => Date.now());
+  }
+});
+
+test('pour rire : compteur de clics et œufs, sans effet sur les jetons', () => {
+  const st = newGame(3, { stack: 100, sb: 5, bb: 10 });
+  must(act(st, st.croupier, 'start'));
+  const before = total(st);
+  must(act(st, 0, 'tap', { n: 7 }));
+  must(act(st, st.croupier, 'tap'));
+  assert.equal(act(st, 0, 'tap', { n: 500 }).error, 'bad-amount');
+  assert.equal(g.view(st, 1).players[0].taps, 7);
+  assert.equal(g.view(st, 1).players[st.croupier].taps, 1);
+  assert.equal(act(st, 1, 'egg', { player: 1 }).error, 'bad-target');
+  for (let k = 0; k < 20; k++) must(act(st, 1, 'egg', { player: 2 }));
+  must(act(st, 2, 'egg', { player: st.croupier }));
+  assert.equal(g.view(st, 0).players[2].eggs, 12);
+  assert.equal(g.view(st, 0).players[2].eggBy, 1);
+  must(act(st, 2, 'clean'));
+  assert.equal(st.players[2].eggs, 0);
+  assert.equal(total(st), before);
+  assert.equal(st.phase, 'betting');
+});

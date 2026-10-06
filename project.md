@@ -454,3 +454,34 @@ Audit par captures d'écran à 390 px de large (taille d'un téléphone) de chaq
 - **Vérification** : 290 tests verts ; rendu à blanc du client (mini-DOM) sur une partie réelle à
   4 joueurs + croupier (setup, recave via le menu, relance au plateau, tapis, abattage, distribution,
   départ, fin) sans erreur. Pas de navigateur dans l'environnement : rendu visuel à valider sur téléphone.
+
+## 2026-10-06 — Jetons de poker : durée de partie, gros plan, explosion de jetons et œufs
+- **Durée de partie** (`config { duration }`, en minutes, réglable en `setup` seulement) : `blindPlan`
+  calcule une structure de blindes au temps. Départ à ~100 grosses blindes (`stack/100`), arrivée vers
+  1/20 des jetons en jeu (deux derniers joueurs à ~10 grosses blindes : la partie se conclut), progression
+  géométrique de raison ~1,5 ; nombre de niveaux = log(arrivée/départ)/log 1,5 + 1, durée d'un niveau =
+  durée / niveaux (3 à 60 min). Grosses blindes arrondies à des valeurs « rondes » paires (petite blinde =
+  moitié entière), strictement croissantes ; 6 niveaux de prolongation au-delà. Ex. 1 000 jetons,
+  6 joueurs, 2 h : 9 niveaux de 13 min, 10 → 150.
+  - **Horloge** démarrée à la 1re main ; le niveau ne change **qu'au début d'une main** (jamais pendant).
+    Croupier : `level { delta: ±1 }` (passer au niveau suivant tout de suite), `pause { on }`. Blindes
+    changées à la main en cours de partie : l'horloge s'arrête (retour au mode libre).
+  - Le temps restant est envoyé en ms dans la vue (`clock.left`) : chaque téléphone en déduit une
+    échéance locale (pas de dépendance aux horloges des téléphones) et un seul `setInterval` d'1 s met
+    à jour les comptes à rebours affichés. Moteur testable via `_internal.setNow`.
+- **Gros plan (croupier)** : la table seule en plein écran (Fullscreen API si possible, sinon
+  superposition fixe) avec écran maintenu allumé (Wake Lock). Les tailles des sièges, du pot et du bouton
+  central suivent la largeur de la table (unités `cqw`, conteneur CSS) : grande table sur tablette.
+- **Explosion de jetons** : toucher une pile (ses jetons, le pot) lance une gerbe de 26 jetons animés
+  (Web Animations, aucun fichier), coupée si `prefers-reduced-motion`. Chaque toucher incrémente le
+  **compteur de clics** du joueur (`tap { n }`), affiché en badge 👆 à côté de chaque siège. Les clics sont
+  regroupés par paquets de 600 ms pour ne pas reconstruire la page de tout le monde à chaque toucher.
+- **Œufs** : toucher un autre joueur (ou le croupier) ouvre son petit menu → « Lancer un œuf »
+  (`egg { player }`, 12 au plus en attente). L'œuf vole jusqu'au siège ; la victime voit des taches
+  (CSS pur, positions reproductibles d'un rafraîchissement à l'autre), vibre, et doit appuyer sur
+  « Nettoyer » (`clean`). Seules les nouvelles taches sont animées. Le croupier y retrouve aussi
+  « Recave, absence… ». Aucun effet sur les jetons.
+- **Jetons plus gros** partout (piles des mises, du pot et du joueur).
+- **Tests** : +2 (structure de blindes, niveaux au temps, pause, niveau suivant ; clics et œufs sans
+  effet sur les jetons), 292 au total ; rendu à blanc (mini-DOM) du gros plan, de la durée, des clics, de
+  l'œuf et du nettoyage.
