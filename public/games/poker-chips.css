@@ -1,35 +1,162 @@
-/* Jetons de poker : tapis, piles de jetons dessinées en CSS, plateau de mise, table du croupier. */
-.ch-felt { background: #14532d; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.ch-felt .hint { text-align: center; color: #bbf7d0; }
-.ch-potlabel { font-size: .75rem; letter-spacing: .15em; color: #bbf7d0; }
-.ch-potnum { font-size: 2rem; font-weight: 800; line-height: 1; }
-.ch-stack { display: inline-flex; align-items: flex-end; gap: 4px; min-height: 28px; }
+/* Jetons de poker : table en long (stade) avec sièges autour, piles de jetons dessinées en CSS,
+   barre d'actions du joueur, plateau de mise et menu du croupier. Aucune image ni police externe. */
+.ch-root { --felt: #14633a; --felt-dk: #0b3d23; --rail: #3b2314; --rail-lt: #6b4226; --gold: #e3b341; --gold-dk: #a87d1c;
+           --cream: #f5ecd7; display: flex; flex-direction: column; gap: 10px; }
+
+/* ---- jetons ---- */
+.ch-stack { display: inline-flex; align-items: flex-end; gap: 3px; min-height: 24px; }
 .ch-col { display: flex; flex-direction: column-reverse; align-items: center; }
-.ch-disc { display: block; width: 46px; height: 12px; margin-top: -6px; border-radius: 50%; background: var(--c);
-           border: 2px dashed #ffffffb0; box-shadow: 0 1px 0 #0006; box-sizing: border-box; }
-.ch-n { font-size: .7rem; color: #e5e7eb; }
-.ch-none { color: #94a3b8; }
-.ch-stack.small .ch-disc { width: 26px; height: 8px; margin-top: -4px; border-width: 1px; }
-.ch-stack.small { min-height: 18px; gap: 2px; }
-.ch-stack.small .ch-n { font-size: .6rem; }
-.cp-p > .ch-stack { flex-basis: 100%; padding-left: 20px; }
-.ch-btn { width: 20px; height: 20px; border-radius: 50%; background: #f8fafc; color: #111827; font-size: .7rem;
-          font-weight: 800; display: inline-flex; align-items: center; justify-content: center; flex: none; }
-.chip.ch-croupier { background: #854d0e; }
-.chip.ch-allin { background: #7f1d1d; }
-.ch-mine { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.ch-mynum { font-size: 1.8rem; font-weight: 800; line-height: 1; }
-.ch-raise { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
-.ch-raise input[type=range] { width: 100%; }
-.ch-raise .hint { text-align: center; }
+.ch-disc { display: block; width: 30px; height: 9px; margin-top: -5px; border-radius: 50%; background: var(--c);
+           border: 2px dashed #ffffffb0; box-shadow: 0 1px 0 #0007; }
+.ch-n { font-size: .6rem; color: var(--cream); line-height: 1.1; }
+.ch-stack.tiny { min-height: 14px; gap: 1px; }
+.ch-stack.tiny .ch-disc { width: 16px; height: 6px; margin-top: -3px; border-width: 1px; }
+.ch-stack.tiny .ch-n { display: none; }
+.ch-stack.pot .ch-disc { width: 26px; height: 8px; margin-top: -4px; }
+
+/* ---- barre du croupier ---- */
+.ch-bar { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ch-hand { color: var(--dim); font-size: .85rem; letter-spacing: .04em; text-transform: uppercase; }
+.ch-menu-btn { background: var(--rail); color: var(--gold); border: 1px solid var(--gold-dk); padding: 8px 14px; }
+
+/* ---- table ---- */
+.ch-table-wrap { padding: 4px 6px; }
+.ch-table { position: relative; width: 100%; max-width: 440px; margin: 0 auto; aspect-ratio: 100 / var(--h);
+            border-radius: 999px; box-sizing: border-box;
+            background: radial-gradient(ellipse at 50% 45%, #1d7a48 0%, var(--felt) 45%, var(--felt-dk) 100%);
+            border: 14px solid var(--rail);
+            box-shadow: inset 0 0 0 2px var(--gold-dk), inset 0 0 0 9px #ffffff0d, inset 0 6px 24px #0008,
+                        0 0 0 2px var(--rail-lt), 0 10px 24px #000a; }
+/* Ligne de mise dessinée sur le feutre. */
+.ch-table::before { content: ''; position: absolute; inset: 16%; border-radius: 999px; border: 1px solid #ffffff1c; pointer-events: none; }
+
+.ch-center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 52%;
+             display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; z-index: 1; }
+.ch-pot { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.ch-potnum { font-size: 1.6rem; font-weight: 800; line-height: 1; color: var(--cream); text-shadow: 0 2px 4px #0008; }
+.ch-street { font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; color: #bbf7d0; }
+.ch-note { font-size: .8rem; color: #d1fae5; }
+.ch-note b { font-weight: 700; }
+.ch-result { font-size: .85rem; color: var(--cream); display: flex; flex-direction: column; gap: 2px; }
+
+/* Bouton « Main suivante » : grand jeton doré au centre du tapis. */
+.ch-go { width: min(150px, 100%); aspect-ratio: 1; border-radius: 50%; padding: 0; display: flex; flex-direction: column;
+         align-items: center; justify-content: center; gap: 2px; color: #2a1a05;
+         background: radial-gradient(circle at 50% 40%, #ffe08a, var(--gold) 55%, var(--gold-dk));
+         border: 6px dashed #fff8; box-shadow: 0 0 0 4px var(--gold-dk), 0 6px 18px #000a; animation: ch-glow 2.4s ease-in-out infinite; }
+.ch-go:active { transform: scale(.96); }
+.ch-go-main { font-size: 1.1rem; font-weight: 800; line-height: 1.1; }
+.ch-go-sub { font-size: .7rem; opacity: .75; }
+@keyframes ch-glow { 50% { box-shadow: 0 0 0 4px var(--gold-dk), 0 0 26px #e3b34199; } }
+
+/* ---- sièges ---- */
+.ch-seat { position: absolute; transform: translate(-50%, -50%); z-index: 2; width: 68px; padding: 0; background: none;
+           color: var(--cream); font-weight: 400; display: flex; flex-direction: column; align-items: center; gap: 1px;
+           transition: opacity .2s; }
+.ch-face { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-weight: 800; font-size: .85rem;
+           background: #0f172a; color: #fff; border: 3px solid var(--pc, var(--gold)); box-shadow: 0 2px 6px #000a; }
+.ch-name { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: .72rem; font-weight: 600;
+           background: #000a; border-radius: 6px; padding: 0 5px; margin-top: -4px; }
+.ch-amt { font-size: .72rem; font-weight: 700; color: var(--gold); text-shadow: 0 1px 2px #000; }
+.ch-tag { font-size: .6rem; text-transform: uppercase; letter-spacing: .06em; background: #334155; border-radius: 4px; padding: 0 4px; }
+.ch-tag.allin { background: #b91c1c; color: #fff; }
+.ch-tag.win { background: #16a34a; color: #fff; }
+.ch-seat.me .ch-name { background: var(--gold); color: #2a1a05; }
+.ch-seat.out { opacity: .45; }
+.ch-seat.turn .ch-face { border-color: var(--gold); box-shadow: 0 0 0 3px #e3b34155, 0 0 16px var(--gold); animation: ch-pulse 1.2s ease-in-out infinite; }
+@keyframes ch-pulse { 50% { box-shadow: 0 0 0 6px #e3b34122, 0 0 22px var(--gold); } }
+button.ch-seat { cursor: pointer; }
+.ch-seat.pick .ch-face { outline: 2px dashed var(--gold); outline-offset: 3px; }
+.ch-seat.won .ch-face { border-color: #22c55e; box-shadow: 0 0 16px #22c55e; }
+.ch-dealer-seat .ch-face { background: var(--rail); border-color: var(--gold); font-size: 1.1rem; }
+.ch-dealer-seat .ch-amt { color: #bbf7d0; font-weight: 400; }
+
+.ch-bet { position: absolute; transform: translate(-50%, -50%); z-index: 1; display: flex; align-items: center; gap: 3px;
+          font-size: .7rem; font-weight: 700; color: var(--cream); background: #0006; border-radius: 999px; padding: 1px 6px 1px 3px; }
+.ch-dbtn { position: absolute; transform: translate(-50%, -50%); z-index: 1; width: 20px; height: 20px; border-radius: 50%;
+           display: grid; place-items: center; background: #fff; color: #111; font-size: .65rem; font-weight: 800;
+           box-shadow: 0 1px 3px #000a, inset 0 0 0 2px #cbd5e1; }
+
+/* ---- abattage (croupier) ---- */
+.ch-showdown { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.ch-pottabs { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px; }
+.ch-pottab { padding: 4px 8px; font-size: .7rem; background: #0007; color: var(--cream); font-weight: 600; }
+.ch-pottab.done { box-shadow: inset 0 0 0 1px #22c55e; }
+.ch-pottab.on { background: var(--gold); color: #2a1a05; }
+.ch-award-btn { background: var(--gold); color: #2a1a05; padding: 10px 14px; font-weight: 800; }
+
+.ch-tip { font-size: .8rem; color: var(--dim); text-align: center; }
+
+/* ---- place du joueur ---- */
+.ch-dock { background: linear-gradient(180deg, #1e293b, #0b1220); border: 1px solid #334155; border-radius: 16px; padding: 12px;
+           display: flex; flex-direction: column; gap: 10px; }
+.ch-dock.live { position: sticky; bottom: calc(8px + env(safe-area-inset-bottom)); z-index: 5;
+                border-color: var(--gold-dk); box-shadow: 0 0 0 1px var(--gold-dk), 0 -6px 20px #000a; }
+.ch-mine { display: flex; align-items: center; justify-content: center; gap: 12px; }
+.ch-mine-num b { font-size: 1.6rem; font-weight: 800; color: var(--gold); }
+.ch-mine-num span { color: var(--dim); font-size: .85rem; }
+.ch-say { text-align: center; font-weight: 600; }
+.ch-dock.live .ch-say { color: var(--gold); }
+.ch-acts { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 8px; }
+.ch-acts button { padding: 14px 8px; font-weight: 800; font-size: 1rem; }
+.ch-fold { background: #7f1d1d; color: #fee2e2; }
+.ch-call { background: #15803d; color: #f0fdf4; }
+.ch-raise-btn { background: var(--gold); color: #2a1a05; }
+.ch-raise-btn.on { background: #334155; color: var(--txt); }
+
+/* Plateau de mise */
+.ch-raise { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; border-top: 1px solid #334155; }
+.ch-preview { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 1.3rem; min-height: 40px; }
+.ch-preview b { color: var(--gold); }
 .ch-tray { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-.ch-tap { width: 52px; height: 52px; padding: 0; border-radius: 50%; background: var(--c); color: #fff; font-weight: 800;
-          border: 4px dashed #ffffffc0; box-shadow: 0 2px 0 #0008; text-shadow: 0 1px 2px #000; }
+.ch-tap { width: 48px; height: 48px; padding: 0; border-radius: 50%; background: var(--c); color: #fff; font-weight: 800; font-size: .8rem;
+          border: 4px dashed #ffffffc0; box-shadow: 0 3px 0 #0009; text-shadow: 0 1px 2px #000; }
 .ch-tap:active { transform: translateY(2px); box-shadow: none; }
-.ch-preview { display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 1.2rem; }
-.ch-form { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
-.ch-field { display: flex; flex-direction: column; gap: 2px; }
-.ch-field input, .ch-form select { width: 100%; box-sizing: border-box; }
-.ch-award { padding: 8px 0; border-top: 1px solid #ffffff20; }
-.ch-croupier-box { border: 1px solid #854d0e; }
-.pk-center { text-align: center; }
+.ch-raise input[type=range] { width: 100%; accent-color: var(--gold); padding: 0; }
+.ch-quick { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.ch-chipbtn { padding: 8px 4px; background: #334155; color: var(--txt); font-size: .85rem; }
+.ch-confirm { background: var(--gold); color: #2a1a05; font-weight: 800; font-size: 1.05rem; padding: 14px; }
+.ch-link { background: none; color: var(--dim); padding: 4px; font-weight: 400; text-decoration: underline; }
+
+.ch-row { display: flex; flex-wrap: wrap; gap: 8px; }
+.ch-row > button { flex: 1; }
+
+/* ---- menu du croupier (feuille du bas) ---- */
+.ch-veil { position: fixed; inset: 0; z-index: 35; background: #000a; display: flex; align-items: flex-end; justify-content: center; }
+.ch-sheet { width: 100%; max-width: 520px; max-height: 88dvh; overflow-y: auto; background: var(--card);
+            border-radius: 18px 18px 0 0; border-top: 3px solid var(--gold-dk);
+            padding: 12px 16px calc(16px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 12px; }
+.ch-sheet-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ch-sheet-head h3 { margin: 0; font-size: 1.05rem; }
+.ch-close { background: #334155; color: var(--txt); padding: 8px 12px; }
+.ch-lock { margin: 0; font-size: .85rem; color: var(--gold); }
+section.ch-sec { background: #0b1220; margin: 0; padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+.ch-sec h4 { margin: 0; font-size: .75rem; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); }
+.ch-who { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 2px; }
+.ch-who-btn { flex: none; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 8px 10px; min-width: 72px;
+              background: #1e293b; color: var(--txt); font-weight: 600; font-size: .85rem; }
+.ch-who-btn i { width: 10px; height: 10px; border-radius: 50%; }
+.ch-who-btn small { color: var(--gold); font-weight: 700; }
+.ch-who-btn.on { box-shadow: inset 0 0 0 2px var(--gold); }
+.ch-primary { background: var(--gold); color: #2a1a05; font-weight: 800; }
+.ch-custom { align-items: flex-end; }
+.ch-custom .ch-field { flex: 2 1 120px; }
+.ch-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ch-grid .ch-field:last-child { grid-column: 1 / -1; }
+.ch-field { display: flex; flex-direction: column; gap: 4px; font-size: .8rem; color: var(--dim); }
+.ch-field input { width: 100%; padding: 10px; }
+.ch-danger { width: 100%; background: #7f1d1d; color: #fee2e2; }
+
+/* ---- historique et classement ---- */
+.ch-log { background: var(--card); border-radius: 12px; padding: 8px 12px; font-size: .85rem; }
+.ch-log summary { cursor: pointer; color: var(--dim); }
+.ch-log summary span { color: var(--txt); }
+.ch-log-list { display: flex; flex-direction: column; gap: 3px; margin-top: 6px; color: var(--dim); }
+.ch-rank { list-style: none; counter-reset: r; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.ch-rank li { counter-increment: r; display: flex; justify-content: space-between; gap: 8px; background: var(--card); border-radius: 10px; padding: 10px 14px; }
+.ch-rank li::before { content: counter(r) '.'; color: var(--dim); margin-right: 8px; }
+.ch-rank li b { flex: 1; }
+.ch-rank li:first-child { box-shadow: inset 0 0 0 2px var(--gold); }
+.ch-rank li span { color: var(--gold); font-weight: 700; }
+
+@media (prefers-reduced-motion: reduce) { .ch-go, .ch-seat.turn .ch-face { animation: none; } }

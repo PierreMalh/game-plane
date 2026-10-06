@@ -428,3 +428,29 @@ Audit par captures d'écran à 390 px de large (taille d'un téléphone) de chaq
   aucune erreur JS.
 - **Limites** : pas d'ajout de joueur une fois la partie lancée (comportement des tables) ; pas de
   « straddle » ni d'ante.
+
+## 2026-10-06 — Jetons de poker : table en long et refonte de l'interface
+- **Besoin** : le croupier voyait une liste de joueurs et des formulaires ; on veut l'ambiance d'une vraie
+  table, un bouton « Main suivante » évident et des réglages rangés à part. Seul le client change
+  (`public/games/poker-chips.js` + `.css`) : moteur, messages et tests serveur intacts.
+- **Table** : un stade vertical (`border-radius: 999px` sur une boîte de rapport 100 × H) au feutre vert
+  avec rebord bois et liseré doré. Les sièges sont posés à **intervalles réguliers le long du rebord**
+  (côtés droits et virages paramétrés par longueur d'arc, `track()`/`place()`), dans le sens du jeu en
+  partant du bas : **celui qui regarde est toujours en bas**, le croupier (🎩) a sa place autour de la
+  table. Mises devant chaque siège (piles miniatures sur une piste intérieure), bouton « D », pot et rue
+  au centre. Même vue pour le croupier, les joueurs et les spectateurs (table plus haute côté croupier).
+- **Croupier** : entre deux mains, **grand jeton doré « Main suivante »** au milieu du tapis (résultat de
+  la main précédente au-dessus). Bouton **⚙ Réglages** ouvrant une feuille du bas : **recave** (choix du
+  joueur, `+tapis de départ` en un geste, autre montant à donner/retirer), absent/remis en jeu, blindes,
+  tapis de départ (en `setup` seulement), doublement des blindes, fin de partie. Toucher un siège ouvre
+  directement ce menu sur ce joueur. À l'abattage, on **touche les sièges gagnants** (onglets par pot
+  s'il y a des pots annexes) puis « Distribuer ».
+- **Joueur** : barre du bas (collante quand c'est à lui) avec ses jetons, l'état de la main et des
+  boutons larges couleur poker (couché rouge, suivre/parole vert, relancer or) ; le plateau de jetons
+  s'ouvre à la demande (aperçu de la pile, curseur, Min/½ pot/Pot/Tapis). Historique replié sous la
+  table (dernière ligne visible).
+- **Léger** : aucune image, police ni bibliothèque ; jetons et table en CSS pur, animations coupées si
+  `prefers-reduced-motion`. Skill `frontend-design` utilisé pour la direction visuelle.
+- **Vérification** : 290 tests verts ; rendu à blanc du client (mini-DOM) sur une partie réelle à
+  4 joueurs + croupier (setup, recave via le menu, relance au plateau, tapis, abattage, distribution,
+  départ, fin) sans erreur. Pas de navigateur dans l'environnement : rendu visuel à valider sur téléphone.
