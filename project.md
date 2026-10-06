@@ -469,3 +469,8 @@ Audit par captures d'écran à 390 px de large (taille d'un téléphone) de chaq
   « 0 » n'est plus affiché hors des enchères, le journal vide n'apparaît plus.
 - Vérifié dans Chromium à 360 et 390 px (réglage, tour de mise, abattage du croupier, entre deux
   mains, 10 sièges), aucune erreur JS.
+- **Croupier au-dessus de la table** (demande après essai) : la table du croupier est coupée en deux.
+  Au-dessus du tapis, ce qui fait avancer la main (« Commencer la partie » / « Main suivante », choix
+  des gagnants et « Distribuer les pots » à l'abattage), pour l'avoir sous les yeux sans défiler ;
+  sous le tapis, les réglages des blindes, la recave et « Terminer la partie » (masqués pendant les
+  enchères).

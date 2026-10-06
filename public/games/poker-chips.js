@@ -329,26 +329,31 @@
     return d;
   }
 
-  function drawCroupier(table, s, send) {
+  // Croupier, au-dessus de la table : ce qui fait avancer la main (lancer, désigner les gagnants).
+  function drawCroupierHand(table, s, send) {
     const box = el('div', 'cp-box ch-croupier-box');
     box.append(el('div', 'cp-info', '🎩 Table du croupier'));
-    const idle = s.phase === 'setup' || s.phase === 'between';
-
     if (s.phase === 'showdown') {
       box.append(el('div', 'hint pk-center', 'Cartes sur table : touche le ou les gagnants de chaque pot.'), awardForm(table, s, send));
-    } else if (idle) {
-      const first = s.phase === 'setup';
-      box.append(button(first ? 'Commencer la partie' : 'Main suivante', () => send({ type: 'start' }), 'ch-wide'));
-      const { form } = setupForm(s, send, first);
-      box.append(fold('config', `Blindes ${s.config.sb}/${s.config.bb}${first ? `, tapis ${s.config.stack}` : ''}`, form, first));
-      box.append(fold('give', 'Recave ou correction de jetons', giveForm(table, s, send), false));
+    } else if (s.phase === 'setup' || s.phase === 'between') {
+      box.append(button(s.phase === 'setup' ? 'Commencer la partie' : 'Main suivante', () => send({ type: 'start' }), 'ch-wide'));
     } else {
       box.append(el('div', 'hint pk-center', 'Une main est en cours : le croupier suit les enchères.'));
     }
-    if (s.phase !== 'betting') {
-      const end = button('Terminer la partie', () => { if (confirm('Terminer la partie pour tout le monde ?')) send({ type: 'end' }); }, 'ch-end');
-      box.append(end);
+    return box;
+  }
+
+  // Croupier, sous la table : réglages, recave et fin de partie (hors enchères).
+  function drawCroupierTools(table, s, send) {
+    if (s.phase === 'betting') return null;
+    const box = el('div', 'cp-box ch-croupier-box');
+    if (s.phase === 'setup' || s.phase === 'between') {
+      const first = s.phase === 'setup';
+      const { form } = setupForm(s, send, first);
+      box.append(fold('config', `Blindes ${s.config.sb}/${s.config.bb}${first ? `, tapis ${s.config.stack}` : ''}`, form, first));
+      box.append(fold('give', 'Recave ou correction de jetons', giveForm(table, s, send), false));
     }
+    box.append(button('Terminer la partie', () => { if (confirm('Terminer la partie pour tout le monde ?')) send({ type: 'end' }); }, 'ch-end'));
     return box;
   }
 
@@ -399,12 +404,13 @@
     if (s.phase === 'over') {
       root.append(drawTable(table, s), drawOver(table, s));
     } else {
+      if (s.isCroupier && !table.spectator) root.append(drawCroupierHand(table, s, send));
       root.append(drawTable(table, s), drawBlinds(s));
       if (!table.spectator) {
         if (!s.isCroupier) root.append(drawMine(table, s, send));
         const idle = s.phase === 'setup' || s.phase === 'between';
         if (s.phase === 'between') { const r = drawResult(table, s); if (r) root.append(r); }
-        if (s.isCroupier) root.append(drawCroupier(table, s, send));
+        if (s.isCroupier) { const t = drawCroupierTools(table, s, send); if (t) root.append(t); }
         else if (idle) root.append(drawWaiting(table, s, send));
         else if (s.phase === 'showdown') {
           const b = el('div', 'cp-box');
