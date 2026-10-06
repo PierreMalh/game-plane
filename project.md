@@ -493,3 +493,17 @@ Audit par captures d'écran à 390 px de large (taille d'un téléphone) de chaq
   la partie), `pointer-events: none` (les boutons restent utilisables), sous le chat. Purement local,
   rien n'est envoyé au serveur ; désactivé si le téléphone demande moins d'animations ; petite
   vibration au toucher. Une ligne d'aide l'indique quand ce n'est pas son tour.
+
+## 2026-10-06 — Déploiement en ligne sur Railway
+- **Besoin** : pouvoir jouer aussi avec internet (amis à distance, essais), sans changer l'usage
+  hors ligne via le hotspot.
+- **Choix** : nouveau projet Railway `game-plane`, un service relié au dépôt GitHub (branche `main`,
+  redéploiement à chaque push) et un domaine Railway généré
+  (https://game-plane-production.up.railway.app). Aucun fichier de config ni changement de code :
+  le serveur lisait déjà `PORT` et écoutait sur `0.0.0.0`, zéro dépendance à installer ; le
+  WebSocket passe par le proxy HTTPS de Railway (`wss://…/ws`).
+- **Limites assumées** : pas de volume, donc les images du jeu de cartes personnalisé et les parties
+  en cours disparaissent à chaque redéploiement ; pas d'authentification, donc toute personne qui a
+  le lien peut entrer dans le salon et modifier le jeu de cartes (comme sur le hotspot).
+- **Vérifié** : page servie (200), fichiers statiques et ouverture du WebSocket en production, sans
+  créer de joueur de test.

@@ -34,8 +34,13 @@ jeux de cartes : **Président** (3–6), **8 américain** (2–6), **Menteur** (
 - Tests : `npm test` (`node:test`).
 
 ## Déploiement
-Aucun serveur distant : l'hôte (Android + Termux) lance `npm start` et partage
-son hotspot Wi-Fi. Voir `README.md`.
+- **Hors ligne (usage principal)** : l'hôte (Android + Termux) lance `npm start` et partage
+  son hotspot Wi-Fi. Voir `README.md`.
+- **En ligne (Railway)** : projet `game-plane`, service `game-plane` relié à la branche `main`
+  de `PierreMalh/game-plane` (redéploiement automatique à chaque push sur `main`), URL
+  https://game-plane-production.up.railway.app. Aucune config : Nixpacks lance `npm start`, le
+  serveur écoute sur `PORT` et `0.0.0.0`. Pas de volume : les photos du jeu de cartes
+  personnalisé (`custom-cards/`) et l'état des parties sont perdus à chaque redéploiement.
 
 ## Conventions
 - Commentaires et docs en français.
