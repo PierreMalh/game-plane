@@ -11,7 +11,7 @@
   // Valeurs et couleurs des jetons, du plus grand au plus petit.
   const DENOMS = [
     { v: 1000, c: '#f59e0b' }, { v: 500, c: '#7c3aed' }, { v: 100, c: '#1f2937' },
-    { v: 25, c: '#16a34a' }, { v: 5, c: '#dc2626' }, { v: 1, c: '#e5e7eb' },
+    { v: 25, c: '#16a34a' }, { v: 5, c: '#dc2626' }, { v: 1, c: '#e5e7eb', s: '#2563eb' },
   ];
   const MAX_DISCS = 6; // jetons dessinés par colonne (le reste est indiqué par « ×n »)
 
@@ -36,6 +36,8 @@
   let draftSeen = false; // champs initialisés depuis la configuration du serveur
   let raiseTo = null, raiseKey = null; // mise composée au plateau de jetons
   let winners = { hand: -1, picks: [] }; // gagnants cochés par pot (par numéro de main)
+  const folds = {}; // volets du croupier ouverts ou fermés à la main (survivent aux rafraîchissements)
+  let menuOpen = false; // volet « Gérer » du croupier ouvert
 
   // ---------------------------------------------------------------- jetons
 
@@ -50,11 +52,14 @@
     return out;
   }
 
-  function disc(d, label) {
-    const c = el('i', 'ch-disc', label);
-    c.style.setProperty('--c', d.c);
-    return c;
+  // Couleur du jeton (--c) et de ses liserés (--s, blanc sauf sur le jeton blanc).
+  function paint(node, d) {
+    node.style.setProperty('--c', d.c);
+    if (d.s) node.style.setProperty('--s', d.s);
+    return node;
   }
+
+  const disc = (d) => paint(el('i', 'ch-disc'), d);
 
   // Piles de jetons dessinées pour un montant ; `small` pour les listes.
   function stack(amount, small) {
@@ -62,12 +67,82 @@
     box.setAttribute('aria-label', `${amount} jetons`);
     for (const { d, n } of breakdown(amount)) {
       const col = el('span', 'ch-col');
+      col.dataset.v = d.v;
       for (let k = 0; k < Math.min(n, MAX_DISCS); k++) col.append(disc(d));
       if (n > MAX_DISCS) col.append(el('b', 'ch-n', `×${n}`));
       box.append(col);
     }
     if (amount <= 0) box.append(el('span', 'ch-none', '—'));
     return box;
+  }
+
+  // ---------------------------------------------------------------- jetons qui volent
+  // Pour jouer avec ses jetons en attendant : toucher sa pile en fait sauter quelques-uns, qui
+  // tournoient, retombent, rebondissent sur les bords de l'écran puis s'effacent. Purement local :
+  // rien n'est envoyé au serveur. Le calque est posé sur <body> pour survivre aux rafraîchissements.
+
+  const FLY = { size: 34, gravity: 2200, life: 2.6, max: 60 };
+  const flying = [];
+  let flyLayer = null;
+  let flyLast = 0;
+
+  function fling(x, y, denoms) {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches || !denoms.length) return;
+    if (!flyLayer || !flyLayer.isConnected) { flyLayer = el('div', 'ch-fly-layer'); document.body.append(flyLayer); }
+    const count = 3 + Math.floor(Math.random() * 3);
+    for (let k = 0; k < count && flying.length < FLY.max; k++) {
+      const d = denoms[Math.floor(Math.random() * denoms.length)];
+      const node = paint(el('i', 'ch-fly', String(d.v)), d);
+      flyLayer.append(node);
+      flying.push({
+        node, x: x - FLY.size / 2, y: y - FLY.size / 2, t: 0,
+        vx: (Math.random() - 0.5) * 900, vy: -900 - Math.random() * 700,
+        rot: Math.random() * 360, vrot: (Math.random() - 0.5) * 900,
+        flip: Math.random() * Math.PI, vflip: 8 + Math.random() * 14,
+      });
+    }
+    if (navigator.vibrate) navigator.vibrate(10);
+    if (!flyLast) { flyLast = performance.now(); requestAnimationFrame(flyStep); }
+  }
+
+  function flyStep(now) {
+    const dt = Math.min(0.05, (now - flyLast) / 1000);
+    flyLast = now;
+    const w = innerWidth - FLY.size, h = innerHeight - FLY.size;
+    for (let k = flying.length - 1; k >= 0; k--) {
+      const c = flying[k];
+      c.t += dt;
+      c.vy += FLY.gravity * dt;
+      c.x += c.vx * dt;
+      c.y += c.vy * dt;
+      c.rot += c.vrot * dt;
+      c.flip += c.vflip * dt;
+      if (c.x < 0 || c.x > w) { c.x = Math.min(Math.max(c.x, 0), w); c.vx *= -0.7; }
+      if (c.y < 0) { c.y = 0; c.vy *= -0.5; }
+      if (c.y > h) { c.y = h; c.vy *= -0.55; c.vx *= 0.8; c.vflip *= 0.6; c.vrot *= 0.6; }
+      // Retournement autour de l'axe horizontal : la pièce s'aplatit puis revient, comme une pièce lancée.
+      c.node.style.transform = `translate3d(${c.x}px, ${c.y}px, 0) rotate(${c.rot}deg) scaleY(${Math.max(0.12, Math.abs(Math.cos(c.flip)))})`;
+      c.node.style.opacity = String(Math.min(1, (FLY.life - c.t) / 0.4));
+      if (c.t >= FLY.life) { c.node.remove(); flying.splice(k, 1); }
+    }
+    if (flying.length) requestAnimationFrame(flyStep);
+    else flyLast = 0;
+  }
+
+  // Sa pile, à toucher : la colonne touchée donne la couleur des jetons lancés.
+  function playStack(amount) {
+    const b = el('button', 'ch-play');
+    b.type = 'button';
+    b.setAttribute('aria-label', 'Faire sauter tes jetons');
+    b.append(stack(amount));
+    b.addEventListener('click', (e) => {
+      const col = e.target.closest('.ch-col');
+      const all = breakdown(amount).map((x) => x.d);
+      const picked = col ? all.filter((d) => d.v === Number(col.dataset.v)) : all;
+      const r = (col ?? b).getBoundingClientRect();
+      fling(e.clientX || r.left + r.width / 2, e.clientY || r.top, picked.length ? picked : all);
+    });
+    return b;
   }
 
   // ---------------------------------------------------------------- éléments d'interface
@@ -106,54 +181,59 @@
 
   // ---------------------------------------------------------------- blocs
 
-  function drawFelt(s) {
-    const felt = el('div', 'cp-box ch-felt');
-    felt.append(el('div', 'ch-potlabel', 'POT'));
-    felt.append(stack(s.pot));
-    felt.append(el('div', 'ch-potnum', String(s.pot)));
-    const parts = [];
-    if (s.street) parts.push(`${STREET[s.street]} · main n° ${s.handNo}`);
-    else if (s.handNo) parts.push(`Main n° ${s.handNo} terminée`);
-    parts.push(`blindes ${s.config.sb}/${s.config.bb}`);
-    if (s.config.blindEvery) {
-      const left = s.config.blindEvery - ((s.handNo - 1) % s.config.blindEvery) - 1;
-      if (s.handNo) parts.push(left > 0 ? `doublées dans ${left} main${left > 1 ? 's' : ''}` : 'doublées à la prochaine main');
+  // Centre du tapis : tour d'enchères, pot en piles de jetons, croupier.
+  function drawCenter(table, s) {
+    const box = document.createDocumentFragment();
+    box.append(el('div', 'pt-street', s.street ? `${STREET[s.street]}, main n° ${s.handNo}` : s.handNo ? `Main n° ${s.handNo} terminée` : 'Game Plane'));
+    if (s.pot > 0) box.append(stack(s.pot, true));
+    if (s.pot > 0 || s.phase === 'betting') {
+      const tag = el('div', 'pt-pot');
+      tag.append(el('small', null, 'Pot'), document.createTextNode(String(s.pot)));
+      box.append(tag);
     }
-    felt.append(el('div', 'hint', parts.join(' · ')));
-    return felt;
-  }
-
-  function drawPlayers(table, s) {
-    const box = el('div', 'cp-box cp-players');
-    s.players.forEach((p, i) => {
-      const isC = i === s.croupier;
-      const out = !isC && (p.left || p.sitOut || (!p.inHand && p.chips === 0));
-      const row = el('div', 'cp-p' + (i === s.turn && s.phase === 'betting' ? ' turn' : '') + (out || (p.inHand && p.folded) ? ' out' : ''));
-      const dot = el('i');
-      dot.style.background = color(i);
-      row.append(dot, el('b', null, nm(table, i) + (i === table.me ? ' (toi)' : '')));
-      if (i === s.dealer && s.street) row.append(el('span', 'ch-btn', 'D'));
-      if (i === s.croupier) row.append(el('span', 'chip ch-croupier', 'croupier'));
-      const chips = el('span', 'chips');
-      if (p.left) chips.append(el('span', 'chip', 'parti'));
-      else if (isC) chips.append(el('span', 'chip', 'ne joue pas'));
-      else {
-        if (p.sitOut) chips.append(el('span', 'chip', 'absent'));
-        else if (p.chips === 0 && !p.inHand) chips.append(el('span', 'chip', 'à sec'));
-        if (p.inHand && p.folded) chips.append(el('span', 'chip', 'couché'));
-        if (p.allIn && !p.folded) chips.append(el('span', 'chip ch-allin', 'tapis'));
-        if (p.bet > 0) chips.append(el('span', 'chip now', `mise ${p.bet}`));
-        chips.append(el('span', 'chip ch-stacknum', `${p.chips} 🪙`));
-      }
-      row.append(chips);
-      if (!p.left && !isC && p.chips > 0) row.append(stack(p.chips, true));
-      box.append(row);
-    });
+    if (s.croupier >= 0 && table.players[s.croupier]) box.append(el('div', 'pt-street', `Croupier : ${nm(table, s.croupier)}`));
     return box;
   }
 
+  // Sous la table : blindes et leur prochain doublement.
+  function drawBlinds(s) {
+    let text = `Blindes ${s.config.sb}/${s.config.bb}`;
+    if (s.config.blindEvery && s.handNo) {
+      const left = s.config.blindEvery - ((s.handNo - 1) % s.config.blindEvery) - 1;
+      text += left > 0 ? ` (doublées dans ${left} main${left > 1 ? 's' : ''})` : ' (doublées à la prochaine main)';
+    }
+    const line = el('div', 'hint pk-center', text);
+    line.style.margin = '0';
+    return line;
+  }
+
+  // Table dessinée : les joueurs autour (le croupier ne s'assoit pas), leur mise en jetons devant eux.
+  function drawTable(table, s, full) {
+    const seats = [];
+    s.players.forEach((p, i) => {
+      if (i === s.croupier) return;
+      const out = p.left || p.sitOut || (!p.inHand && p.chips === 0);
+      let badge = null, badgeCls = null;
+      if (p.left) badge = 'parti';
+      else if (p.sitOut) badge = 'absent';
+      else if (p.chips === 0 && !p.inHand) badge = 'à sec';
+      else if (p.inHand && p.folded) badge = 'couché';
+      else if (p.allIn) { badge = 'tapis'; badgeCls = 'allin'; }
+      let bet = null;
+      if (p.bet > 0) { bet = document.createDocumentFragment(); bet.append(stack(p.bet, true), document.createTextNode(String(p.bet))); }
+      seats.push({
+        idx: i, name: nm(table, i), color: color(i), me: i === table.me,
+        amount: p.left ? null : `${p.chips} 🪙`, badge, badgeCls,
+        turn: i === s.turn && s.phase === 'betting', out: out || (p.inHand && p.folded),
+        dealer: i === s.dealer && !!s.street, bet, cards: null,
+      });
+    });
+    return GPPokerTable.render({ seats, center: drawCenter(table, s), base: table.me, short: !full });
+  }
+
   // Plateau de jetons : chaque toucher ajoute la valeur du jeton à la mise (dans les limites).
-  function raisePanel(s, box, send) {
+  // Renvoie le panneau et le bouton de relance, placé dans la barre d'actions.
+  function raisePanel(s) {
     const h = s.hints;
     const key = `${s.handNo}/${s.street}/${s.currentBet}`;
     if (raiseKey !== key || raiseTo === null) { raiseKey = key; raiseTo = h.minRaise; }
@@ -162,7 +242,8 @@
     const betting = s.currentBet === 0;
 
     const panel = el('div', 'ch-raise');
-    const go = button('', () => send({ type: raiseTo >= h.maxRaise ? 'allin' : 'raise', to: raiseTo }));
+    const go = el('button');
+    go.type = 'button';
     const slider = el('input');
     slider.type = 'range';
     slider.min = h.minRaise;
@@ -173,25 +254,24 @@
     const refresh = () => {
       slider.value = raiseTo;
       go.textContent = raiseTo >= h.maxRaise ? `Tapis (${h.maxRaise})` : `${betting ? 'Miser' : 'Relancer à'} ${raiseTo}`;
-      preview.replaceChildren(stack(raiseTo, true), el('b', null, String(raiseTo)));
+      preview.replaceChildren(el('span', 'hint', betting ? 'Ta mise' : 'Relance à'), stack(raiseTo, true), el('b', null, String(raiseTo)));
     };
     const set = (v) => { raiseTo = clamp(v); refresh(); };
     slider.addEventListener('input', () => set(Number(slider.value)));
 
-    // Jetons à toucher : on ne propose que ceux qui ne dépassent pas la marge restante.
+    // Jetons à toucher : on ne propose que ceux qui ne dépassent pas son tapis.
     const tray = el('div', 'ch-tray');
     const mine = s.players[s.me];
     for (const d of DENOMS) {
       if (d.v > mine.chips) continue;
-      const b = el('button', 'ch-tap', String(d.v));
+      const b = paint(el('button', 'ch-tap', String(d.v)), d);
       b.type = 'button';
-      b.style.setProperty('--c', d.c);
       b.setAttribute('aria-label', `Ajouter ${d.v}`);
       b.addEventListener('click', () => set(raiseTo + d.v));
       tray.append(b);
     }
 
-    const quick = el('div', 'cp-btns');
+    const quick = el('div', 'ch-presets');
     const potAfterCall = s.pot + h.toCall;
     const preset = (text, to) => quick.append(button(text, () => set(to), 'sec'));
     preset('Min', h.minRaise);
@@ -200,31 +280,39 @@
     preset('Tapis', h.maxRaise);
 
     refresh();
-    const goRow = el('div', 'cp-btns');
-    goRow.append(go);
-    panel.append(el('div', 'hint', 'Touche des jetons pour composer ta mise :'), tray, preview, slider, quick, goRow);
-    box.append(panel);
+    panel.append(preview, tray, slider, quick);
+    return { panel, go };
   }
 
+  // Console du joueur : son tapis en piles, puis, à son tour, le plateau de mise et la barre
+  // d'actions (se coucher, parole ou suivre, relancer) en bas, sous le pouce.
   function drawMine(table, s, send) {
-    const box = el('div', 'cp-box');
+    const box = el('div', 'cp-box ch-console');
     const me = s.players[table.me];
     const head = el('div', 'ch-mine');
-    head.append(el('div', 'hint', 'Tes jetons'), el('div', 'ch-mynum', `${me.chips} 🪙`), stack(me.chips));
-    if (me.bet > 0) head.append(el('div', 'hint', `Déjà misé ce tour : ${me.bet}`));
+    const num = el('div');
+    num.append(el('div', 'hint', 'Tes jetons'), el('div', 'ch-mynum', String(me.chips)));
+    if (me.bet > 0) num.append(el('div', 'hint', `Déjà misé ce tour : ${me.bet}`));
+    head.append(num, me.chips > 0 ? playStack(me.chips) : stack(0));
     box.append(head);
+    if (me.chips > 0 && !s.hints.actions.length) box.append(el('div', 'hint pk-center', 'Touche ta pile pour faire sauter tes jetons.'));
 
     const h = s.hints;
-    const info = (t) => box.append(el('div', 'cp-info', t));
-    const btns = el('div', 'cp-btns');
+    const info = (t) => box.append(el('div', 'cp-info ch-say', t));
     if (s.phase === 'betting') {
       if (h.actions.length) {
         info(h.toCall > 0 ? `À toi de parler : ${h.toCall} pour suivre.` : 'À toi de parler.');
-        btns.append(button('Se coucher', () => send({ type: 'fold' }), 'danger'));
-        if (h.actions.includes('check')) btns.append(button('Parole (check)', () => send({ type: 'check' }), 'sec'));
-        if (h.actions.includes('call')) btns.append(button(h.toCall >= me.chips ? `Suivre à tapis (${h.toCall})` : `Suivre ${h.toCall}`, () => send({ type: 'call' }), 'sec'));
-        box.append(btns);
-        if (h.actions.includes('raise')) raisePanel(s, box, send);
+        const bar = el('div', 'ch-bar');
+        bar.append(button('Se coucher', () => send({ type: 'fold' }), 'danger'));
+        if (h.actions.includes('check')) bar.append(button('Parole', () => send({ type: 'check' }), 'sec'));
+        if (h.actions.includes('call')) bar.append(button(h.toCall >= me.chips ? `Suivre à tapis (${h.toCall})` : `Suivre ${h.toCall}`, () => send({ type: 'call' }), 'sec'));
+        if (h.actions.includes('raise')) {
+          const { panel, go } = raisePanel(s);
+          go.addEventListener('click', () => send({ type: raiseTo >= h.maxRaise ? 'allin' : 'raise', to: raiseTo }));
+          box.append(panel);
+          bar.append(go);
+        }
+        box.append(bar);
       } else if (me.inHand && !me.folded) info(me.allIn ? 'Tu es à tapis : attends l’abattage.' : `Au tour de ${nm(table, s.turn)}…`);
       else info('Tu es couché pour cette main.');
     }
@@ -239,12 +327,14 @@
       draftSeen = true;
     }
     const form = el('div', 'ch-form');
-    form.append(
-      number('stack', 'Tapis de départ', { min: 1, disabled: !firstTime }),
+    const grid = el('div', 'ch-grid');
+    grid.append(
       number('sb', 'Petite blinde', { min: 1 }),
       number('bb', 'Grosse blinde', { min: 1 }),
-      number('every', 'Blindes ×2 toutes les N mains (0 = jamais)', { min: 0 }),
+      number('stack', 'Tapis de départ', { min: 1, disabled: !firstTime }),
+      number('every', 'Doubler toutes les N mains', { min: 0 }),
     );
+    form.append(grid, el('div', 'hint', 'N = 0 : les blindes ne doublent jamais toutes seules.'));
     const num = (v) => Number(v);
     const msg = () => ({ type: 'config', ...(firstTime ? { stack: num(draft.stack) } : {}), sb: num(draft.sb), bb: num(draft.bb), blindEvery: num(draft.every) });
     const row = el('div', 'cp-btns');
@@ -255,12 +345,18 @@
 
   function giveForm(table, s, send) {
     const box = el('div', 'ch-form');
-    box.append(el('div', 'hint', 'Recave / correction de jetons :'));
     const sel = el('select');
+    sel.setAttribute('aria-label', 'Joueur');
     s.players.forEach((p, i) => { if (!p.left && i !== s.croupier) { const o = el('option', null, nm(table, i)); o.value = i; sel.append(o); } });
-    sel.value = draft.player;
+    // Joueur choisi parti ou devenu croupier : on retombe sur le premier de la liste.
+    if ([...sel.options].some((o) => o.value === draft.player)) sel.value = draft.player;
+    else draft.player = sel.value;
     sel.addEventListener('change', () => { draft.player = sel.value; });
-    box.append(sel, number('amount', 'Montant'));
+    const who = el('label', 'ch-field');
+    who.append(el('span', 'hint', 'Joueur'), sel);
+    const grid = el('div', 'ch-grid');
+    grid.append(who, number('amount', 'Montant'));
+    box.append(grid);
     const row = el('div', 'cp-btns');
     const give = (sign) => { const a = Number(draft.amount) * sign; if (a) { send({ type: 'give', player: Number(sel.value), amount: a }); draft.amount = ''; } };
     row.append(button('Donner', () => give(1), 'sec'), button('Retirer', () => give(-1), 'sec'));
@@ -281,8 +377,9 @@
           const cur = winners.picks[k];
           winners.picks[k] = on ? cur.filter((x) => x !== i) : [...cur, i];
           GPGames.refresh();
-        }, on ? '' : 'sec');
-        b.style.borderColor = color(i);
+        }, 'ch-pick' + (on ? ' on' : ''));
+        b.style.setProperty('--pc', color(i));
+        b.setAttribute('aria-pressed', String(on));
         row.append(b);
       }
       part.append(row);
@@ -290,32 +387,102 @@
     });
     const ready = winners.picks.every((w) => w.length > 0);
     const go = el('div', 'cp-btns');
-    go.append(button('Distribuer les pots', () => send({ type: 'award', winners: winners.picks }), '', !ready));
+    go.append(button('Distribuer les pots', () => send({ type: 'award', winners: winners.picks }), 'ch-wide', !ready));
     box.append(el('div', 'hint', 'Plusieurs gagnants sur un pot = partage à parts égales.'), go);
     return box;
   }
 
-  function drawCroupier(table, s, send) {
-    const box = el('div', 'cp-box ch-croupier-box');
-    box.append(el('div', 'cp-info', '🎩 Table du croupier'));
-    const idle = s.phase === 'setup' || s.phase === 'between';
+  // Volet repliable ; son état ouvert/fermé est gardé quand l'écran est redessiné.
+  function fold(key, title, content, openByDefault) {
+    const d = el('details', 'ch-fold');
+    d.open = folds[key] ?? openByDefault;
+    d.addEventListener('toggle', () => { folds[key] = d.open; });
+    d.append(el('summary', null, title), content);
+    return d;
+  }
 
+  // ---------------------------------------------------------------- vue du croupier
+  // Le téléphone du croupier devient la table : tapis en plein écran, bandeau du bas pour faire
+  // avancer la main, et un volet « Gérer » pour les actions ponctuelles (blindes, recave, fin).
+
+  function drawCroupierFull(table, s, send) {
+    const root = el('div', 'ch-full');
+
+    const top = el('div', 'ch-top');
+    const title = el('div');
+    title.append(el('small', null, '🎩 Croupier'), el('b', null, statusOf(table)));
+    const toggle = button('Gérer', () => { menuOpen = !menuOpen; GPGames.refresh(); }, 'sec ch-toggle');
+    toggle.setAttribute('aria-expanded', String(menuOpen));
+    top.append(title, toggle);
+
+    const stage = el('div', 'ch-stage');
+    stage.append(drawTable(table, s, true));
+
+    root.append(top, stage, drawDock(table, s, send));
+    if (menuOpen) root.append(drawMenu(table, s, send));
+    return root;
+  }
+
+  // Bandeau du bas : ce qui fait avancer la main.
+  function drawDock(table, s, send) {
+    const dock = el('div', 'ch-dock');
+    const blinds = drawBlinds(s);
     if (s.phase === 'showdown') {
-      box.append(el('div', 'hint', 'Cartes sur table : qui gagne chaque pot ?'), awardForm(table, s, send));
-    } else if (idle) {
-      const { form } = setupForm(s, send, s.phase === 'setup');
-      const start = el('div', 'cp-btns');
-      start.append(button(s.phase === 'setup' ? 'Commencer la partie' : 'Main suivante', () => send({ type: 'start' })));
-      box.append(form, giveForm(table, s, send), start);
+      dock.append(el('div', 'hint pk-center', 'Cartes sur table : touche le ou les gagnants de chaque pot.'), awardForm(table, s, send));
+    } else if (s.phase === 'setup' || s.phase === 'between') {
+      if (s.phase === 'between' && s.result) {
+        for (const p of s.result.pots) {
+          const line = logLine(table, `${p.winners.map((w) => `@${w}`).join(' et ')} ${p.winners.length > 1 ? 'partagent' : 'remporte'} ${p.amount}`);
+          line.classList.add('pk-center', 'ch-won');
+          dock.append(line);
+        }
+      }
+      dock.append(blinds, button(s.phase === 'setup' ? 'Commencer la partie' : 'Main suivante', () => send({ type: 'start' }), 'ch-wide'));
     } else {
-      box.append(el('div', 'hint', 'Une main est en cours : le croupier suit les enchères.'));
+      dock.append(el('div', 'hint pk-center', 'Main en cours : les joueurs misent sur leur téléphone.'), blinds);
     }
-    if (s.phase !== 'betting') {
-      const end = el('div', 'cp-btns');
-      end.append(button('Terminer la partie', () => { if (confirm('Terminer la partie pour tout le monde ?')) send({ type: 'end' }); }, 'danger'));
-      box.append(end);
+    return dock;
+  }
+
+  // Volet « Gérer » : réglages, recave, journal, chat, quitter, fin de partie.
+  function drawMenu(table, s, send) {
+    const wrap = el('div');
+    const scrim = el('div', 'ch-scrim');
+    scrim.addEventListener('click', () => { menuOpen = false; GPGames.refresh(); });
+    const sheet = el('div', 'ch-sheet');
+    sheet.setAttribute('role', 'dialog');
+    sheet.setAttribute('aria-label', 'Gestion de la partie');
+    const head = el('div', 'ch-sheet-head');
+    const close = button('✕', () => { menuOpen = false; GPGames.refresh(); }, 'ch-close');
+    close.setAttribute('aria-label', 'Fermer');
+    head.append(el('b', null, 'Gestion de la partie'), close);
+    sheet.append(head);
+
+    if (s.phase === 'setup' || s.phase === 'between') {
+      const first = s.phase === 'setup';
+      const { form } = setupForm(s, send, first);
+      sheet.append(fold('config', `Blindes ${s.config.sb}/${s.config.bb}${first ? `, tapis ${s.config.stack}` : ''}`, form, first));
+      sheet.append(fold('give', 'Recave ou correction de jetons', giveForm(table, s, send), false));
+    } else {
+      sheet.append(el('div', 'hint', 'Blindes et recave se règlent entre deux mains.'));
     }
-    return box;
+
+    if (s.log.length) {
+      const log = el('div', 'cp-log ch-menulog');
+      for (const line of s.log.slice(-8)) log.append(logLine(table, line));
+      sheet.append(fold('log', 'Journal de la partie', log, false));
+    }
+
+    // Chat et départ : les boutons du cadre de jeu sont masqués par la table plein écran.
+    const row = el('div', 'cp-btns');
+    row.append(
+      button('💬 Chat de la table', () => { menuOpen = false; GPGames.refresh(); document.getElementById('gv-chat').click(); }, 'sec'),
+      button('Quitter', () => document.getElementById('gv-leave').click(), 'sec'),
+    );
+    sheet.append(row);
+    if (s.phase !== 'betting') sheet.append(button('Terminer la partie', () => { if (confirm('Terminer la partie pour tout le monde ?')) send({ type: 'end' }); }, 'ch-end'));
+    wrap.append(scrim, sheet);
+    return wrap;
   }
 
   function drawResult(table, s) {
@@ -358,20 +525,29 @@
 
   // ---------------------------------------------------------------- vue
 
+  function statusOf(table) {
+    const s = table.state;
+    if (s.phase === 'over') return 'Partie terminée';
+    if (s.phase === 'setup') return s.isCroupier ? 'Règle la partie, puis commence' : `${nm(table, s.croupier)} règle la partie`;
+    if (s.phase === 'between') return s.isCroupier ? 'Prêt pour la main suivante' : 'Entre deux mains';
+    if (s.phase === 'showdown') return s.isCroupier ? 'Désigne les gagnants' : 'Abattage';
+    return s.turn === table.me ? 'À toi de parler' : `Au tour de ${nm(table, s.turn)}`;
+  }
+
   function build(container, ctx) {
     const { table, send } = ctx;
     const s = table.state;
     const root = el('div', 'cp-root');
     if (s.phase === 'over') {
-      root.append(drawFelt(s), drawOver(table, s));
+      root.append(drawTable(table, s), drawOver(table, s));
     } else {
-      root.append(drawFelt(s), drawPlayers(table, s));
+      if (s.isCroupier && !table.spectator) { container.append(drawCroupierFull(table, s, send)); return; }
+      root.append(drawTable(table, s), drawBlinds(s));
       if (!table.spectator) {
         if (!s.isCroupier) root.append(drawMine(table, s, send));
         const idle = s.phase === 'setup' || s.phase === 'between';
         if (s.phase === 'between') { const r = drawResult(table, s); if (r) root.append(r); }
-        if (s.isCroupier) root.append(drawCroupier(table, s, send));
-        else if (idle) root.append(drawWaiting(table, s, send));
+        if (idle) root.append(drawWaiting(table, s, send));
         else if (s.phase === 'showdown') {
           const b = el('div', 'cp-box');
           b.append(el('div', 'cp-info', `Abattage : ${nm(table, s.croupier)} désigne le gagnant…`));
@@ -379,11 +555,13 @@
         }
       } else if (s.phase === 'between') { const r = drawResult(table, s); if (r) root.append(r); }
     }
-    const log = el('div', 'cp-box cp-log');
-    for (const line of s.log.slice(-8)) log.append(logLine(table, line));
-    root.append(log);
     container.append(root);
-    log.scrollTop = log.scrollHeight;
+    if (s.log.length) {
+      const log = el('div', 'cp-box cp-log');
+      for (const line of s.log.slice(-8)) log.append(logLine(table, line));
+      root.append(log);
+      log.scrollTop = log.scrollHeight;
+    }
   }
 
   GPGames.register({
@@ -393,14 +571,7 @@
     errors: ERRORS,
     leaveWarning: 'Quitter la table ? Tu te couches et tes jetons sortent du jeu.',
     isMyTurn: (table) => table.state.hints.actions.length > 0 || (table.state.isCroupier && table.state.phase === 'showdown'),
-    status(table) {
-      const s = table.state;
-      if (s.phase === 'over') return 'Partie terminée';
-      if (s.phase === 'setup') return s.isCroupier ? 'Règle la partie, puis commence' : `${nm(table, s.croupier)} règle la partie`;
-      if (s.phase === 'between') return s.isCroupier ? 'Prêt pour la main suivante' : 'Entre deux mains';
-      if (s.phase === 'showdown') return s.isCroupier ? 'Désigne les gagnants' : 'Abattage';
-      return s.turn === table.me ? 'À toi de parler' : `Au tour de ${nm(table, s.turn)}`;
-    },
+    status: statusOf,
     render: build,
   });
 })();

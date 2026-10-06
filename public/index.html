@@ -3,53 +3,69 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0f172a">
+<meta name="theme-color" content="#171b36">
 <title>Game Plane</title>
 <style>
-  :root { --bg:#0f172a; --card:#1e293b; --txt:#f1f5f9; --dim:#94a3b8; --acc:#38bdf8; --ok:#4ade80; --ko:#f87171; }
+  /* Thème « cabine de nuit » : bleu cabine, accent ambre du voyant « attachez vos ceintures ».
+     Polices système uniquement (rien à télécharger hors ligne) ; ui-rounded = SF Rounded sur iPhone. */
+  :root { --bg:#171b36; --card:#222850; --well:#12152b; --line:#343b69; --sec:#343b69;
+          --txt:#eef0fa; --dim:#9ea6cf; --acc:#ffb547; --on-acc:#2b1a00; --ok:#5fd39b; --ko:#ff6b6b;
+          --round: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, sans-serif; }
   * { box-sizing: border-box; }
-  html { height: 100%; }
+  html { height: 100%; background: var(--bg); }
   body { min-height: 100%; margin: 0; }
-  body { background: var(--bg); color: var(--txt); font: 16px/1.4 system-ui, sans-serif;
-         display: flex; flex-direction: column; padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom); }
-  header { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; position: sticky; top: 0;
+  body { background: var(--bg); color: var(--txt); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+         display: flex; flex-direction: column; padding: env(safe-area-inset-top) 16px env(safe-area-inset-bottom);
+         -webkit-tap-highlight-color: transparent; }
+  header { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 0 10px; position: sticky; top: 0;
            background: var(--bg); z-index: 25; }
   #hstatus { display: flex; align-items: center; gap: 10px; }
-  h1 { font-size: 1.1rem; margin: 0; }
-  #status { font-size: .85rem; color: var(--dim); }
+  h1 { font: 800 1.25rem/1 var(--round); margin: 0; letter-spacing: -.01em; }
+  #status { font-size: .8rem; color: var(--dim); display: inline-flex; align-items: center; gap: 6px; }
+  #status::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
   #status.ok { color: var(--ok); } #status.ko { color: var(--ko); }
-  section { background: var(--card); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
+  section { background: var(--card); border-radius: 16px; padding: 14px; margin-bottom: 12px; }
   #login { display: flex; gap: 8px; }
-  input, button { font: inherit; border-radius: 8px; border: 0; padding: 12px; }
-  input { flex: 1; min-width: 0; background: #0b1220; color: var(--txt); }
-  button { background: var(--acc); color: #04263a; font-weight: 600; }
+  input, button, select { font: inherit; border-radius: 10px; border: 0; padding: 12px; }
+  input, select { flex: 1; min-width: 0; background: var(--well); color: var(--txt); }
+  input:not([type=checkbox]):not([type=range]), select { border: 1px solid var(--line); }
+  input:focus { outline: none; border-color: var(--acc); }
+  button { background: var(--acc); color: var(--on-acc); font-weight: 700; cursor: pointer; transition: transform .08s; }
+  button:active:not(:disabled) { transform: scale(.97); }
+  :focus-visible { outline: 2px solid var(--acc); outline-offset: 2px; }
   #players { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
-  #players li { background: #0b1220; border-radius: 999px; padding: 4px 12px; font-size: .9rem; }
+  #players li { background: var(--well); border-radius: 999px; padding: 5px 12px; font-size: .9rem; }
   #players li::before { content: ''; display: inline-block; width: 8px; height: 8px; border-radius: 50%;
                         background: var(--ok); margin-right: 6px; vertical-align: 1px; }
   #players li.off { color: var(--dim); }
-  #players li.off::before { background: #475569; }
-  #players li.me { outline: 1px solid var(--acc); }
+  #players li.off::before { background: var(--line); }
+  #players li.me { box-shadow: inset 0 0 0 1.5px var(--acc); }
   #players li.tap { cursor: pointer; }
   .hint { color: var(--dim); font-size: .8rem; margin: 8px 0 0; }
-  .welcome { margin: 0 0 12px; color: var(--dim); }
+  .welcome { margin: 0 0 14px; color: var(--dim); }
   .welcome b { color: var(--txt); }
-  section.hl { outline: 2px solid var(--acc); }
-  #game-list { display: flex; flex-direction: column; gap: 8px; }
-  .game-card b { display: block; }
+  /* Parties ouvertes : bande ambre, c'est là qu'on rejoint ses amis. */
+  section.hl { background: linear-gradient(90deg, #ffb5471f, transparent 70%), var(--card); box-shadow: inset 4px 0 0 var(--acc); }
+  section.hl h2 { color: var(--acc); }
+  /* Liste des jeux : lignes séparées par un filet, comme un tableau des départs. */
+  #game-list { display: flex; flex-direction: column; }
+  .game-card { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+  .game-card:first-child { border-top: 0; padding-top: 2px; }
+  .game-card b { display: block; font: 700 1.02rem/1.25 var(--round); }
   .game-card .hint { margin-top: 2px; }
+  .game-card button { background: transparent; color: var(--acc); box-shadow: inset 0 0 0 1.5px var(--acc); padding: 9px 16px; flex: none; }
 
   /* Volet de chat global (lobby et jeux) */
   #chat-toggle { position: relative; width: 40px; height: 40px; border-radius: 50%; font-size: 1.2rem; padding: 0; flex: none; }
-  #chat-badge { position: absolute; top: -4px; right: -4px; background: var(--ko); color: #fff; font-size: .75rem;
+  #chat-badge { position: absolute; top: -4px; right: -4px; background: var(--ko); color: #fff;
                 min-width: 18px; height: 18px; line-height: 18px; border-radius: 9px; padding: 0 4px; font-size: .7rem; }
   #chat-panel { position: fixed; left: 0; right: 0; bottom: 0; height: 60dvh; z-index: 30; background: var(--card);
-                border-radius: 16px 16px 0 0; box-shadow: 0 -4px 16px #0009; display: flex; flex-direction: column;
+                border-radius: 18px 18px 0 0; box-shadow: 0 -6px 24px #05071acc; display: flex; flex-direction: column;
                 padding: 8px 12px calc(8px + env(safe-area-inset-bottom)); }
   #chat-head { display: flex; align-items: center; gap: 8px; }
   #chat-tabs { flex: 1; display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; }
-  .tab { white-space: nowrap; background: #0b1220; color: var(--txt); padding: 6px 12px; border-radius: 999px; font-weight: 400; }
-  .tab.on { background: var(--acc); color: #04263a; font-weight: 600; }
+  .tab { white-space: nowrap; background: var(--well); color: var(--txt); padding: 6px 12px; border-radius: 999px; font-weight: 400; }
+  .tab.on { background: var(--acc); color: var(--on-acc); font-weight: 700; }
   .tab .n { background: var(--ko); color: #fff; border-radius: 10px; margin-left: 6px; padding: 0 6px; font-size: .75rem; }
   #chat-close { background: transparent; color: var(--dim); padding: 6px 10px; font-size: 1.2rem; }
   #chat-log { flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; padding: 4px 0; }
@@ -59,26 +75,29 @@
   #chat-log p.sys { color: var(--dim); font-style: italic; }
   #chat-typing { height: 1.2em; font-size: .8rem; color: var(--dim); }
   #chat-quick { display: flex; gap: 6px; overflow-x: auto; padding: 4px 0; }
-  #chat-quick button { background: #0b1220; color: var(--txt); padding: 6px 12px; font-weight: 400; white-space: nowrap; }
+  #chat-quick button { background: var(--well); color: var(--txt); padding: 6px 12px; font-weight: 400; white-space: nowrap; }
   #chat-form { display: flex; gap: 8px; margin-top: 4px; }
-  h2 { font-size: .95rem; margin: 0 0 8px; color: var(--dim); font-weight: 600; }
-  .game-card, #tables li, #live-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px;
-                           background: #0b1220; border-radius: 10px; padding: 10px 12px; }
+  h2 { font: 700 1rem/1.3 var(--round); margin: 0 0 10px; color: var(--txt); }
+  #tables li, #live-list li { display: flex; justify-content: space-between; align-items: center; gap: 12px;
+                              background: var(--well); border-radius: 12px; padding: 10px 12px; }
   #tables, #live-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-  button.sec { background: #334155; color: var(--txt); }
-  button.danger { background: #ef4444; color: #fff; }
+  button.sec { background: var(--sec); color: var(--txt); }
+  button.danger { background: var(--ko); color: #2a0606; }
   #lobby, #game-view { padding-bottom: 24px; }
-  #gv-head { text-align: center; margin: 4px 0 12px; }
-  #gv-title { color: var(--dim); font-size: .85rem; text-transform: uppercase; letter-spacing: .06em; margin: 0; }
-  #gv-status { font-weight: 700; font-size: 1.1rem; margin: 2px 0 0; min-height: 1.4em; }
+  #gv-head { text-align: center; margin: 2px 0 12px; }
+  #gv-title { color: var(--dim); font: 600 .85rem/1.3 var(--round); margin: 0; }
+  #gv-status { font: 800 1.2rem/1.25 var(--round); margin: 2px 0 0; min-height: 1.4em; }
   #gv-watchers { margin: 2px 0 0; }
-  .waiting li.free { color: var(--dim); font-style: italic; background: transparent; border: 1px dashed #334155; }
+  .waiting li.free { color: var(--dim); font-style: italic; background: transparent; border: 1px dashed var(--line); }
   #gv-actions { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 16px; }
   #toast { position: fixed; top: calc(12px + env(safe-area-inset-top)); left: 50%; transform: translateX(-50%); z-index: 40;
-           background: var(--ko); color: #fff; padding: 8px 16px; border-radius: 999px; font-size: .9rem; }
+           background: var(--ko); color: #2a0606; font-weight: 600; padding: 8px 16px; border-radius: 999px; font-size: .9rem;
+           box-shadow: 0 4px 16px #05071a99; }
   .waiting { list-style: none; margin: 0 auto; padding: 0; display: flex; flex-direction: column; gap: 6px; max-width: 320px; }
-  .waiting li { background: #0b1220; border-radius: 10px; padding: 10px 14px; }
-  button:disabled { opacity: .45; }
+  .waiting li { background: var(--well); border-radius: 12px; padding: 10px 14px; }
+  button:disabled { opacity: .45; cursor: default; }
+  input[type=range] { accent-color: var(--acc); padding: 0; border: 0; background: transparent; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
   [hidden] { display: none !important; }
 </style>
 <link rel="stylesheet" href="games/connect4.css">
@@ -87,6 +106,7 @@
 <link rel="stylesheet" href="games/impostor.css">
 <link rel="stylesheet" href="cards.css">
 <link rel="stylesheet" href="games/belote.css">
+<link rel="stylesheet" href="poker-table.css">
 <link rel="stylesheet" href="games/poker.css">
 <link rel="stylesheet" href="games/poker-chips.css">
 </head>
@@ -113,7 +133,7 @@
     <p class="hint">Touche un joueur pour lui écrire en privé.</p>
   </section>
   <section id="open-tables" class="hl" hidden>
-    <h2>Parties ouvertes · rejoins tes amis</h2>
+    <h2>Parties ouvertes : rejoins tes amis</h2>
     <ul id="tables"></ul>
   </section>
   <section id="live-tables" hidden>
@@ -181,6 +201,7 @@
 <script src="games/eights.js"></script>
 <script src="games/liar.js"></script>
 <script src="games/belote.js"></script>
+<script src="poker-table.js"></script>
 <script src="games/poker.js"></script>
 <script src="games/poker-chips.js"></script>
 <script src="client.js"></script>

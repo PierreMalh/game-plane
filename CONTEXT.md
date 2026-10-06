@@ -84,6 +84,10 @@ son hotspot Wi-Fi. Voir `README.md`.
 - **Poker** : `server/games/cards/poker.js` (Texas Hold'em No-Limit en tournoi : évaluateur de mains,
   pots annexes, tapis incomplet, blindes croissantes) ; client `public/games/poker.js` + `poker.css`.
   Les cartes privées ne sont publiques qu'à l'abattage (`players[i].cards`).
+- **Table de poker dessinée** : `public/poker-table.js` (`GPPokerTable.render({ seats, center, base })`) +
+  `poker-table.css`, utilisée par Poker et Jetons de poker (sièges autour d'un tapis ovale, soi en bas).
+- **Thème** : variables CSS dans `public/index.html` (`--bg`, `--card`, `--well`, `--sec`, `--acc`,
+  `--on-acc`, `--round`…) ; les CSS de jeux n'utilisent pas de couleur de fond codée en dur.
 - **Jeu de cartes personnalisé** : `server/card-skin.js` stocke une image par carte (clé = code
   `AS`, `10H`… ou `back`) dans `custom-cards/` (non versionné, relu au démarrage ; `cardsDir` en
   option de `start()` pour les tests). HTTP : `PUT|DELETE /api/cards/<clé>`, `DELETE /api/cards`,
@@ -93,4 +97,5 @@ son hotspot Wi-Fi. Voir `README.md`.
   (`GPDeck`, réduit l'image en JPEG ~400 px avant l'envoi), `GPGames.refresh()` redessine la partie.
 - **Jetons de poker** : `server/games/poker-chips.js` (aucune carte : mises, blindes, pots et pots annexes ;
   le **croupier** désigne les gagnants à l'abattage) ; client `public/games/poker-chips.js` + `.css`
-  (module de jetons dessinés en CSS et plateau de jetons à toucher pour composer la mise).
+  (module de jetons dessinés en CSS et plateau de jetons à toucher pour composer la mise). Le croupier a
+  une vue plein écran : la table, un bandeau pour faire avancer la main et un volet « Gérer ».

@@ -1,15 +1,4 @@
-/* Poker : tapis vert, tableau de 5 cartes, bouton du donneur, panneau de relance. */
-.pk-felt { background: #14532d; display: flex; flex-direction: column; align-items: center; gap: 8px; }
-.pk-felt .hint { text-align: center; color: #bbf7d0; }
-.pk-board { display: flex; gap: 4px; justify-content: center; }
-.pk-board .card { --cw: 50px; }
-.card.pk-empty { background: transparent; border: 1px dashed #86efac80; box-shadow: none; }
-.pk-info { margin: 0; }
-.pk-btn { width: 20px; height: 20px; border-radius: 50%; background: #f8fafc; color: #111827; font-size: .7rem;
-          font-weight: 800; display: inline-flex; align-items: center; justify-content: center; flex: none; }
-.pk-shown { flex-basis: 100%; display: flex; align-items: center; gap: 4px; padding-left: 20px; }
-.pk-shown .hint { margin-left: 6px; }
-.chip.pk-allin { background: #7f1d1d; }
+/* Poker : la table elle-même est dans poker-table.css ; ici le panneau de relance. */
 .pk-raise { margin-top: 10px; display: flex; flex-direction: column; gap: 4px; }
 .pk-raise input[type=range] { width: 100%; }
 .pk-center { text-align: center; }
