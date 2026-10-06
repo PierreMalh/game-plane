@@ -475,6 +475,21 @@ c'est à lui de parler. Aucune carte n'est gérée par l'appli.
 - Un joueur « à sec » peut être **rechargé** par le croupier. « Sauter les prochaines mains » met
   un joueur de côté sans quitter. On ne peut pas rejoindre une table déjà lancée.
 - Quitter la table = se coucher ; ses jetons sortent du jeu.
+- **La table** : les joueurs sont assis autour d'une table en long, toi toujours en bas. Le croupier a un
+  grand bouton **« Main suivante »** au milieu, un menu **⚙** (durée, blindes, recave, recommencer) et un
+  **⛶ Gros plan** qui met la table en plein écran (écran maintenu allumé) pour le téléphone posé au milieu.
+- **Durée de la partie** (menu ⚙) : choisis 30 min, 1 h, 2 h… ; l'appli calcule les niveaux de blindes
+  (départ à ~100 grosses blindes) pour que la partie finisse à peu près à l'heure. Un **chrono** au centre
+  de la table montre le niveau, les blindes et le temps restant ; un **son** retentit quand les blindes
+  montent (au début de la main suivante). Le croupier peut mettre en pause ou passer à la **blinde
+  suivante**, et changer la durée en cours de partie.
+- **Recommencer** : menu ⚙ → « Recommencer la partie », puis toucher une 2e fois pour confirmer.
+- **Pour rire** : touche une pile de jetons, la colonne touchée saute et retombe ; un compteur 👆 à côté
+  de chaque joueur compte ses clics. Touche un joueur pour lui **lancer un œuf** : chacun en a 10 au
+  départ et en gagne un à chaque main remportée ; la victime doit appuyer sur **Nettoyer**, et elle est
+  ensuite protégée 15 secondes.
+- **Après une mise à jour de l'appli, relancer le serveur** (`Ctrl + C` puis `npm start`) : sinon les
+  nouveautés (durée, œufs, compteurs) ne marchent pas.
 
 ## 6. Problèmes fréquents
 
