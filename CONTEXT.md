@@ -16,7 +16,7 @@ stores.
 Salon unique avec liste des joueurs en direct et **chat à canaux** (général,
 privés, salons de jeu) dans un volet global repliable. Jeux : **Puissance 4**, **Échecs**, **Business Class** (façon Monopoly, 2 à 6 joueurs),
 **Cherche l'imposteur** (façon Undercover, 3 à 8 joueurs),
-jeux de cartes : **Président** (3–6), **8 américain** (2–6), **Menteur** (3–8), **Belote** et **Belote contrée** (4, 2 équipes), **Poker** (Texas Hold'em, 2–8, tournoi).
+jeux de cartes : **Président** (3–6), **8 américain** (2–6), **Menteur** (3–8), **Belote** et **Belote contrée** (4, 2 équipes), **Poker** (Texas Hold'em, 2–8, tournoi), **Jetons de poker** (gestionnaire de jetons pour jouer avec de vraies cartes, 2–10 joueurs + 1 croupier qui ne joue pas).
 
 ## Chat (important pour les jeux : on ne pourra pas parler dans l'avion)
 - `server/chat.js` : canaux `general`, `dm:<idJoueur>` (privé) et salons créés
@@ -91,3 +91,6 @@ son hotspot Wi-Fi. Voir `README.md`.
   Diffusion WebSocket `card-skin` (+ `cardSkin` dans `welcome`). Client : `GPCards.setSkin` (image
   par-dessus la carte dessinée avec rang + couleur dans deux coins, repli si elle ne charge pas), éditeur `public/deck-editor.js`
   (`GPDeck`, réduit l'image en JPEG ~400 px avant l'envoi), `GPGames.refresh()` redessine la partie.
+- **Jetons de poker** : `server/games/poker-chips.js` (aucune carte : mises, blindes, pots et pots annexes ;
+  le **croupier** désigne les gagnants à l'abattage) ; client `public/games/poker-chips.js` + `.css`
+  (module de jetons dessinés en CSS et plateau de jetons à toucher pour composer la mise).
