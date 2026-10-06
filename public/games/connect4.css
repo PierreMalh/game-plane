@@ -4,7 +4,7 @@
 .c4-col { display: flex; flex-direction: column; gap: 4px; background: transparent; padding: 0; border-radius: 8px; }
 .c4-col:not(:disabled):active { background: #ffffff33; }
 .c4-col:disabled { opacity: 1; }
-.c4-cell { display: block; width: var(--s); height: var(--s); border-radius: 50%; background: #0f172a; }
+.c4-cell { display: block; width: var(--s); height: var(--s); border-radius: 50%; background: var(--bg); }
 .c4-cell.p0 { background: #ef4444; }
 .c4-cell.p1 { background: #facc15; }
 .c4-cell.last { animation: c4-drop .35s ease-out; }

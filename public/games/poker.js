@@ -36,53 +36,65 @@
     return p;
   }
 
-  function drawPlayers(table, s) {
-    const box = el('div', 'cp-box cp-players');
+  // Table dessinée : chaque joueur à son siège avec son tapis, sa mise devant lui, ses cartes
+  // (dos pendant la main, faces à l'abattage, les siennes face visible) et le bouton du donneur.
+  function drawTable(table, s) {
     const won = new Set((s.result?.pots ?? []).flatMap((p) => p.winners));
-    s.players.forEach((p, i) => {
+    const seats = s.players.map((p, i) => {
       const out = p.left || (!p.inHand && p.chips === 0);
-      const row = el('div', 'cp-p' + (i === s.turn && s.phase === 'betting' ? ' turn' : '') + (out || p.folded ? ' out' : ''));
-      const dot = el('i');
-      dot.style.background = color(i);
-      const who = el('b', null, nm(table, i) + (i === table.me ? ' (toi)' : ''));
-      row.append(dot, who);
-      if (i === s.dealer && !out) row.append(el('span', 'pk-btn', 'D'));
-      const chips = el('span', 'chips');
-      if (p.left) chips.append(el('span', 'chip', 'parti'));
-      else if (out) chips.append(el('span', 'chip', 'éliminé'));
-      else {
-        chips.append(el('span', 'chip pk-stack', `${p.chips} 🪙`));
-        if (p.bet > 0) chips.append(el('span', 'chip now', `mise ${p.bet}`));
-        if (p.folded) chips.append(el('span', 'chip', 'couché'));
-        if (p.allIn) chips.append(el('span', 'chip pk-allin', 'tapis'));
-        if (s.phase !== 'betting' && won.has(i)) chips.append(el('span', 'chip ok', 'gagne'));
+      const win = s.phase !== 'betting' && won.has(i);
+      const hand = p.cards && s.result?.hands?.[i];
+      let badge = null, badgeCls = null;
+      if (p.left) badge = 'parti';
+      else if (out) badge = 'éliminé';
+      else if (hand) { badge = hand.name; if (win) badgeCls = 'win'; }
+      else if (win) { badge = 'gagne'; badgeCls = 'win'; }
+      else if (p.folded) badge = 'couché';
+      else if (p.allIn) { badge = 'tapis'; badgeCls = 'allin'; }
+      let cards = null;
+      const me = i === table.me;
+      if (p.cards || (me && s.hand.length)) {
+        cards = el('div');
+        for (const c of p.cards ?? s.hand) cards.append(GPCards.face(c, { small: !me }));
+      } else if (p.inHand && !p.folded && s.phase !== 'over') {
+        cards = el('div');
+        cards.append(GPCards.back(true), GPCards.back(true));
       }
-      row.append(chips);
-      // Cartes montrées à l'abattage, avec le nom de la combinaison.
-      if (p.cards) {
-        const shown = el('div', 'pk-shown');
-        for (const c of p.cards) shown.append(GPCards.face(c, { small: true }));
-        const hand = s.result?.hands?.[i];
-        if (hand) shown.append(el('span', 'hint', hand.name));
-        row.append(shown);
-      }
-      box.append(row);
+      let bet = null;
+      if (p.bet > 0) { bet = document.createDocumentFragment(); bet.append(el('i', 'pt-chip'), document.createTextNode(String(p.bet))); }
+      return {
+        idx: i, name: nm(table, i), color: color(i), me,
+        amount: out ? null : `${p.chips} 🪙`, badge, badgeCls,
+        turn: i === s.turn && s.phase === 'betting', out: out || p.folded, win,
+        dealer: i === s.dealer && !out, cards, bet,
+      };
     });
+    return GPPokerTable.render({ seats, center: drawCenter(s), base: table.me });
+  }
+
+  // Centre du tapis : tour d'enchères, cartes communes, pot.
+  function drawCenter(s) {
+    const box = document.createDocumentFragment();
+    if (s.phase === 'betting') box.append(el('div', 'pt-street', STREET[s.street]));
+    else box.append(el('div', 'pt-logo', 'Game Plane'));
+    const row = el('div', 'pt-board');
+    for (let k = 0; k < 5; k++) row.append(s.board[k] ? GPCards.face(s.board[k]) : el('div', 'card pt-empty'));
+    box.append(row);
+    const pot = s.phase === 'betting' ? s.pot : (s.result?.pots ?? []).reduce((t, p) => t + p.amount, 0);
+    if (pot > 0) {
+      const tag = el('div', 'pt-pot');
+      tag.append(el('small', null, 'Pot'), document.createTextNode(String(pot)));
+      box.append(tag);
+    }
     return box;
   }
 
-  function drawBoard(s) {
-    const felt = el('div', 'cp-box pk-felt');
-    const row = el('div', 'pk-board');
-    for (let k = 0; k < 5; k++) row.append(s.board[k] ? GPCards.face(s.board[k]) : el('div', 'card pk-empty'));
-    felt.append(row);
-    const info = el('div', 'cp-info pk-info');
-    if (s.phase === 'betting') info.textContent = `${STREET[s.street]} · Pot ${s.pot}`;
-    else if (s.result) info.textContent = `Pot ${s.result.pots.reduce((t, p) => t + p.amount, 0)}`;
-    felt.append(info);
+  // Sous la table : numéro de main et blindes.
+  function drawBlinds(s) {
     const next = s.blindEvery - ((s.handNo - 1) % s.blindEvery) - 1;
-    felt.append(el('div', 'hint', `Main n° ${s.handNo} · blindes ${s.blinds[0]}/${s.blinds[1]}` + (next > 0 ? ` · elles doublent dans ${next} main${next > 1 ? 's' : ''}` : ' · elles doublent à la prochaine main')));
-    return felt;
+    const line = el('div', 'hint pk-center', `Main n° ${s.handNo}, blindes ${s.blinds[0]}/${s.blinds[1]}` + (next > 0 ? ` (doublées dans ${next} main${next > 1 ? 's' : ''})` : ' (doublées à la prochaine main)'));
+    line.style.margin = '0';
+    return line;
   }
 
   // Panneau de relance : curseur + raccourcis (min, ½ pot, pot, tapis).
@@ -167,14 +179,7 @@
     const { table } = ctx;
     const s = table.state;
     const root = el('div', 'cp-root');
-    root.append(drawPlayers(table, s), drawBoard(s), drawActions(ctx, table, s));
-
-    if (s.hand.length) {
-      const mine = el('div', 'cp-box');
-      mine.append(el('div', 'cp-info', 'Tes cartes'));
-      GPCards.hand(mine, s.hand);
-      root.append(mine);
-    }
+    root.append(drawTable(table, s), drawBlinds(s), drawActions(ctx, table, s));
 
     const log = el('div', 'cp-box cp-log');
     for (const line of s.log.slice(-8)) log.append(logLine(table, line));

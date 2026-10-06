@@ -1,22 +1,14 @@
-/* Jetons de poker : tapis, piles de jetons dessinées en CSS, plateau de mise, table du croupier. */
-.ch-felt { background: #14532d; display: flex; flex-direction: column; align-items: center; gap: 6px; }
-.ch-felt .hint { text-align: center; color: #bbf7d0; }
-.ch-potlabel { font-size: .75rem; letter-spacing: .15em; color: #bbf7d0; }
-.ch-potnum { font-size: 2rem; font-weight: 800; line-height: 1; }
+/* Jetons de poker : piles de jetons dessinées en CSS, plateau de mise, table du croupier
+   (la table elle-même est dans poker-table.css). */
 .ch-stack { display: inline-flex; align-items: flex-end; gap: 4px; min-height: 28px; }
 .ch-col { display: flex; flex-direction: column-reverse; align-items: center; }
 .ch-disc { display: block; width: 46px; height: 12px; margin-top: -6px; border-radius: 50%; background: var(--c);
            border: 2px dashed #ffffffb0; box-shadow: 0 1px 0 #0006; box-sizing: border-box; }
-.ch-n { font-size: .7rem; color: #e5e7eb; }
+.ch-n { font-size: .7rem; color: #e5e7eb; text-shadow: 0 1px 2px #000; }
 .ch-none { color: #94a3b8; }
 .ch-stack.small .ch-disc { width: 26px; height: 8px; margin-top: -4px; border-width: 1px; }
 .ch-stack.small { min-height: 18px; gap: 2px; }
 .ch-stack.small .ch-n { font-size: .6rem; }
-.cp-p > .ch-stack { flex-basis: 100%; padding-left: 20px; }
-.ch-btn { width: 20px; height: 20px; border-radius: 50%; background: #f8fafc; color: #111827; font-size: .7rem;
-          font-weight: 800; display: inline-flex; align-items: center; justify-content: center; flex: none; }
-.chip.ch-croupier { background: #854d0e; }
-.chip.ch-allin { background: #7f1d1d; }
 .ch-mine { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .ch-mynum { font-size: 1.8rem; font-weight: 800; line-height: 1; }
 .ch-raise { margin-top: 10px; display: flex; flex-direction: column; gap: 6px; }
@@ -31,5 +23,4 @@
 .ch-field { display: flex; flex-direction: column; gap: 2px; }
 .ch-field input, .ch-form select { width: 100%; box-sizing: border-box; }
 .ch-award { padding: 8px 0; border-top: 1px solid #ffffff20; }
-.ch-croupier-box { border: 1px solid #854d0e; }
-.pk-center { text-align: center; }
+.ch-croupier-box { box-shadow: inset 0 0 0 1.5px #b07a2a; }

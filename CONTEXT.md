@@ -84,6 +84,10 @@ son hotspot Wi-Fi. Voir `README.md`.
 - **Poker** : `server/games/cards/poker.js` (Texas Hold'em No-Limit en tournoi : évaluateur de mains,
   pots annexes, tapis incomplet, blindes croissantes) ; client `public/games/poker.js` + `poker.css`.
   Les cartes privées ne sont publiques qu'à l'abattage (`players[i].cards`).
+- **Table de poker dessinée** : `public/poker-table.js` (`GPPokerTable.render({ seats, center, base })`) +
+  `poker-table.css`, utilisée par Poker et Jetons de poker (sièges autour d'un tapis ovale, soi en bas).
+- **Thème** : variables CSS dans `public/index.html` (`--bg`, `--card`, `--well`, `--sec`, `--acc`,
+  `--on-acc`, `--round`…) ; les CSS de jeux n'utilisent pas de couleur de fond codée en dur.
 - **Jeu de cartes personnalisé** : `server/card-skin.js` stocke une image par carte (clé = code
   `AS`, `10H`… ou `back`) dans `custom-cards/` (non versionné, relu au démarrage ; `cardsDir` en
   option de `start()` pour les tests). HTTP : `PUT|DELETE /api/cards/<clé>`, `DELETE /api/cards`,

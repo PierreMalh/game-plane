@@ -1,0 +1,55 @@
+/* Table de poker (Poker et Jetons de poker) : rebord en bois, tapis vert, sièges autour. */
+.pt { --px: 36px; --py: 28px; position: relative; width: 100%; max-width: 460px; margin: 30px auto 0; aspect-ratio: 4 / 5;
+      container-type: inline-size; }
+.pt-rail { position: absolute; inset: var(--py) calc(var(--px) - 6px); border-radius: 999px; padding: 11px;
+           background: linear-gradient(160deg, #8a5532 0%, #5b3219 45%, #3d1f0e 100%);
+           box-shadow: 0 10px 28px #05071acc, inset 0 2px 1px #c48a5f80, inset 0 -3px 4px #1f0e05; }
+.pt-felt { position: relative; width: 100%; height: 100%; border-radius: 999px; overflow: hidden;
+           background: radial-gradient(ellipse 75% 60% at 50% 42%, #23935a 0%, #157043 55%, #0d4f2e 100%);
+           box-shadow: inset 0 0 0 2px #0a3d23, inset 0 6px 18px #0009; }
+/* Ligne des mises, imprimée sur le tapis comme sur une vraie table. */
+.pt-felt::after { content: ''; position: absolute; inset: 15% 13%; border-radius: 999px; border: 1.5px solid #ffffff22; }
+
+.pt-center { position: absolute; left: 50%; top: 46%; transform: translate(-50%, -50%); width: 64%;
+             display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; color: #e7f7ec; }
+.pt-board { display: flex; gap: 3px; justify-content: center; }
+.pt-board .card { --cw: min(40px, 10.2cqw); }
+.pt-board .card.pt-empty { background: transparent; border: 1.5px dashed #ffffff40; box-shadow: none; }
+.pt-pot { display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px; border-radius: 999px; background: #062a17b3;
+          font: 800 .95rem/1.3 var(--round); }
+.pt-pot small { font: 600 .72rem/1 system-ui, sans-serif; color: #a7e3bf; }
+.pt-street { font: 600 .78rem/1.2 var(--round); color: #a7e3bf; }
+.pt-logo { font: italic 800 .85rem/1 var(--round); color: #ffffff24; letter-spacing: .02em; }
+
+/* Siège : plaque sombre posée sur le rebord, liseré à la couleur du joueur. */
+.pt-seat { position: absolute; transform: translate(-50%, -50%); width: min(76px, 21cqw); padding: 4px 4px 5px; border-radius: 12px;
+           background: #12152bf0; box-shadow: inset 0 3px 0 var(--pc), 0 3px 10px #0008; text-align: center; line-height: 1.15; z-index: 2; }
+.pt-name { display: block; font-size: .72rem; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pt-amount { display: block; font: 800 .82rem/1.2 var(--round); color: var(--acc); }
+.pt-badge { display: block; font-size: .62rem; color: var(--dim); }
+.pt-badge.allin { color: #ff8f8f; font-weight: 700; }
+.pt-badge.win { color: var(--ok); font-weight: 700; }
+.pt-badge.role { color: #f0c27a; }
+.pt-seat.turn { box-shadow: inset 0 3px 0 var(--pc), 0 0 0 2px var(--acc), 0 0 16px #ffb54799; }
+.pt-seat.win { box-shadow: inset 0 3px 0 var(--pc), 0 0 0 2px var(--ok), 0 0 14px #5fd39b80; }
+.pt-seat.out { opacity: .5; }
+.pt-seat.me .pt-name { color: var(--acc); }
+
+/* Cartes : les siennes en grand devant soi, celles des autres en éventail au-dessus du siège. */
+.pt-cards, .pt-bet { position: absolute; transform: translate(-50%, -50%); z-index: 1; }
+.pt-cards > div { display: flex; gap: 3px; }
+.pt-cards .card { --cw: min(42px, 11cqw); border-radius: 5px; }
+.pt-hole { position: absolute; left: 50%; bottom: calc(100% - 2px); transform: translateX(-50%); z-index: -1; }
+.pt-hole > div { display: flex; }
+.pt-hole .card { --cw: min(25px, 6.8cqw); border-radius: 3px; }
+.pt-hole .card + .card { margin-left: -5px; transform: rotate(6deg); }
+.pt-hole .card:first-child { transform: rotate(-6deg); }
+.pt-hole .card.back { border-width: 1px; }
+.pt-bet { display: flex; flex-direction: column; align-items: center; gap: 1px; color: #fff; font: 800 .75rem/1 var(--round);
+          text-shadow: 0 1px 2px #000; white-space: nowrap; }
+.pt-dealer { position: absolute; top: -9px; right: -9px; width: 22px; height: 22px; border-radius: 50%; background: #f8f6ee; color: #1a1a1a;
+             font: 900 .7rem/22px var(--round); text-align: center; box-shadow: 0 2px 3px #0008, inset 0 0 0 2px #fff, inset 0 0 0 3px #bbb; }
+/* Jeton simple dessiné pour les mises du jeu de poker (sans piles). */
+.pt-chip { width: 18px; height: 18px; border-radius: 50%; background: #d63b3b; border: 3px dashed #fff; box-shadow: 0 1px 2px #000a; }
+
+@media (min-width: 520px) { .pt { aspect-ratio: 5 / 4; --px: 44px; } .pt-center { width: 56%; top: 48%; } }

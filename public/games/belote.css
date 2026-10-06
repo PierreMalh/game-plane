@@ -4,7 +4,7 @@
 .bl-trump { min-width: 78px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
 .bl-felt { position: relative; height: 330px; background: #14532d; border-radius: 16px; padding: 8px; }
 .bl-seat { position: absolute; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 4px 8px;
-           background: #0b1220cc; border-radius: 10px; font-size: .85rem; max-width: 44%; text-align: center; }
+           background: #12152bcc; border-radius: 10px; font-size: .85rem; max-width: 44%; text-align: center; }
 .bl-seat i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .bl-seat.ours { border: 1px solid var(--acc); }
 .bl-seat.turn { box-shadow: 0 0 0 3px #fde047; }

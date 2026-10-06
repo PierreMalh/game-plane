@@ -428,3 +428,25 @@ Audit par captures d'écran à 390 px de large (taille d'un téléphone) de chaq
   aucune erreur JS.
 - **Limites** : pas d'ajout de joueur une fois la partie lancée (comportement des tables) ; pas de
   « straddle » ni d'ante.
+
+## 2026-10-06 — Refonte visuelle et table de poker dessinée
+- **Thème « cabine de nuit »** (`public/index.html`) : fond bleu cabine `#171b36`, panneaux `#222850`,
+  creux `--well`, accent ambre `#ffb547` (le voyant « attachez vos ceintures ») à la place du bleu ciel.
+  Les couleurs codées en dur des CSS de jeux (`#0b1220`, `#334155`, `#04263a`) passent par des
+  variables (`--well`, `--sec`, `--on-acc`) : un thème se change à un seul endroit.
+- **Typographie** : polices système seulement (rien à télécharger hors ligne) ; titres en
+  `ui-rounded` (SF Rounded sur iPhone, repli `system-ui` ailleurs) pour un ton de jeu sans police externe.
+- **Salon** : la liste des jeux devient des lignes séparées par un filet (façon tableau des départs)
+  avec un bouton « Créer » en contour, au lieu d'une pile de cartes identiques ; les parties ouvertes
+  ont une bande ambre. Focus clavier visible, mouvement réduit respecté.
+- **Table de poker** (`public/poker-table.js` + `.css`, `GPPokerTable.render`) partagée par *Poker* et
+  *Jetons de poker* : tapis vert ovale avec rebord en bois et ligne des mises, joueurs **assis autour**
+  (soi-même en bas, le joueur suivant à sa gauche comme à une vraie table), mises posées devant chaque
+  siège, bouton du donneur accroché au siège, cartes communes et pot au centre. Les cartes des autres
+  sont en éventail au-dessus de leur siège (dos pendant la main, faces à l'abattage avec la
+  combinaison) ; les siennes en grand devant soi (plus de bloc « Tes cartes » à part).
+  Le croupier des *Jetons de poker* ne s'assoit pas : il est nommé au centre.
+- **Placement** : sièges sur une ellipse en `calc()` (`--px`/`--py` gardent les sièges des bords
+  dans l'écran), tailles en unités de conteneur (`cqw`). Les mises des sièges latéraux passent sous
+  le siège pour ne pas recouvrir les cartes communes. Vérifié dans Chromium à 360 et 390 px, de 4 à
+  10 sièges, aucune erreur JS. Aucun changement serveur.

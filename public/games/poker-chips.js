@@ -106,50 +106,52 @@
 
   // ---------------------------------------------------------------- blocs
 
-  function drawFelt(s) {
-    const felt = el('div', 'cp-box ch-felt');
-    felt.append(el('div', 'ch-potlabel', 'POT'));
-    felt.append(stack(s.pot));
-    felt.append(el('div', 'ch-potnum', String(s.pot)));
-    const parts = [];
-    if (s.street) parts.push(`${STREET[s.street]} · main n° ${s.handNo}`);
-    else if (s.handNo) parts.push(`Main n° ${s.handNo} terminée`);
-    parts.push(`blindes ${s.config.sb}/${s.config.bb}`);
-    if (s.config.blindEvery) {
-      const left = s.config.blindEvery - ((s.handNo - 1) % s.config.blindEvery) - 1;
-      if (s.handNo) parts.push(left > 0 ? `doublées dans ${left} main${left > 1 ? 's' : ''}` : 'doublées à la prochaine main');
-    }
-    felt.append(el('div', 'hint', parts.join(' · ')));
-    return felt;
+  // Centre du tapis : tour d'enchères, pot en piles de jetons, croupier.
+  function drawCenter(table, s) {
+    const box = document.createDocumentFragment();
+    box.append(el('div', 'pt-street', s.street ? `${STREET[s.street]}, main n° ${s.handNo}` : s.handNo ? `Main n° ${s.handNo} terminée` : 'Game Plane'));
+    if (s.pot > 0) box.append(stack(s.pot, true));
+    const tag = el('div', 'pt-pot');
+    tag.append(el('small', null, 'Pot'), document.createTextNode(String(s.pot)));
+    box.append(tag);
+    if (s.croupier >= 0 && table.players[s.croupier]) box.append(el('div', 'pt-street', `Croupier : ${nm(table, s.croupier)}`));
+    return box;
   }
 
-  function drawPlayers(table, s) {
-    const box = el('div', 'cp-box cp-players');
+  // Sous la table : blindes et leur prochain doublement.
+  function drawBlinds(s) {
+    let text = `Blindes ${s.config.sb}/${s.config.bb}`;
+    if (s.config.blindEvery && s.handNo) {
+      const left = s.config.blindEvery - ((s.handNo - 1) % s.config.blindEvery) - 1;
+      text += left > 0 ? ` (doublées dans ${left} main${left > 1 ? 's' : ''})` : ' (doublées à la prochaine main)';
+    }
+    const line = el('div', 'hint pk-center', text);
+    line.style.margin = '0';
+    return line;
+  }
+
+  // Table dessinée : les joueurs autour (le croupier ne s'assoit pas), leur mise en jetons devant eux.
+  function drawTable(table, s) {
+    const seats = [];
     s.players.forEach((p, i) => {
-      const isC = i === s.croupier;
-      const out = !isC && (p.left || p.sitOut || (!p.inHand && p.chips === 0));
-      const row = el('div', 'cp-p' + (i === s.turn && s.phase === 'betting' ? ' turn' : '') + (out || (p.inHand && p.folded) ? ' out' : ''));
-      const dot = el('i');
-      dot.style.background = color(i);
-      row.append(dot, el('b', null, nm(table, i) + (i === table.me ? ' (toi)' : '')));
-      if (i === s.dealer && s.street) row.append(el('span', 'ch-btn', 'D'));
-      if (i === s.croupier) row.append(el('span', 'chip ch-croupier', 'croupier'));
-      const chips = el('span', 'chips');
-      if (p.left) chips.append(el('span', 'chip', 'parti'));
-      else if (isC) chips.append(el('span', 'chip', 'ne joue pas'));
-      else {
-        if (p.sitOut) chips.append(el('span', 'chip', 'absent'));
-        else if (p.chips === 0 && !p.inHand) chips.append(el('span', 'chip', 'à sec'));
-        if (p.inHand && p.folded) chips.append(el('span', 'chip', 'couché'));
-        if (p.allIn && !p.folded) chips.append(el('span', 'chip ch-allin', 'tapis'));
-        if (p.bet > 0) chips.append(el('span', 'chip now', `mise ${p.bet}`));
-        chips.append(el('span', 'chip ch-stacknum', `${p.chips} 🪙`));
-      }
-      row.append(chips);
-      if (!p.left && !isC && p.chips > 0) row.append(stack(p.chips, true));
-      box.append(row);
+      if (i === s.croupier) return;
+      const out = p.left || p.sitOut || (!p.inHand && p.chips === 0);
+      let badge = null, badgeCls = null;
+      if (p.left) badge = 'parti';
+      else if (p.sitOut) badge = 'absent';
+      else if (p.chips === 0 && !p.inHand) badge = 'à sec';
+      else if (p.inHand && p.folded) badge = 'couché';
+      else if (p.allIn) { badge = 'tapis'; badgeCls = 'allin'; }
+      let bet = null;
+      if (p.bet > 0) { bet = document.createDocumentFragment(); bet.append(stack(p.bet, true), document.createTextNode(String(p.bet))); }
+      seats.push({
+        idx: i, name: nm(table, i), color: color(i), me: i === table.me,
+        amount: p.left ? null : `${p.chips} 🪙`, badge, badgeCls,
+        turn: i === s.turn && s.phase === 'betting', out: out || (p.inHand && p.folded),
+        dealer: i === s.dealer && !!s.street, bet, cards: null,
+      });
     });
-    return box;
+    return GPPokerTable.render({ seats, center: drawCenter(table, s), base: table.me });
   }
 
   // Plateau de jetons : chaque toucher ajoute la valeur du jeton à la mise (dans les limites).
@@ -363,9 +365,9 @@
     const s = table.state;
     const root = el('div', 'cp-root');
     if (s.phase === 'over') {
-      root.append(drawFelt(s), drawOver(table, s));
+      root.append(drawTable(table, s), drawOver(table, s));
     } else {
-      root.append(drawFelt(s), drawPlayers(table, s));
+      root.append(drawTable(table, s), drawBlinds(s));
       if (!table.spectator) {
         if (!s.isCroupier) root.append(drawMine(table, s, send));
         const idle = s.phase === 'setup' || s.phase === 'between';
