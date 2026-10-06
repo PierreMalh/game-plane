@@ -16,7 +16,9 @@
 //   Durée de partie : le croupier choisit une durée (en minutes) ; `blindPlan` en déduit une
 //   structure de blindes par niveaux de temps (départ à ~100 grosses blindes, arrivée vers le
 //   20e des jetons en jeu, progression géométrique arrondie à des valeurs « rondes »). Le
-//   niveau change au début d'une main ; le croupier peut passer au niveau suivant ou mettre en pause.
+//   niveau change au début d'une main ; le croupier peut passer au niveau suivant, mettre en pause
+//   et modifier un niveau (blindes, durée). Partie de 1 h 30 par défaut ; régler des blindes à la
+//   main (sans durée) repasse en mode libre.
 //   Pour rire : compteur de clics sur les jetons (`tap`), œufs lancés sur un joueur (`egg`) qu'il
 //   doit nettoyer (`clean`). Chacun commence avec 10 œufs, en gagne un par main remportée ; après
 //   un nettoyage on est protégé 15 s. Aucun effet sur les jetons.
@@ -26,7 +28,7 @@
 const MAX_CHIPS = 1e9;
 const LOG_MAX = 20;
 const STREETS = ['preflop', 'flop', 'turn', 'river'];
-const DEFAULTS = { stack: 1000, sb: 10, bb: 20, blindEvery: 0, duration: 0 };
+const DEFAULTS = { stack: 1000, sb: 10, bb: 20, blindEvery: 0, duration: 90 };
 const MAX_EGGS = 12; // taches en attente sur un écran
 const EGG_STOCK = 10; // œufs de départ de chacun
 const SHIELD_MS = 15000; // protection après un nettoyage
@@ -39,7 +41,7 @@ const say = (st, text) => { st.log.push(text); if (st.log.length > LOG_MAX) st.l
 const isInt = (n, min, max = MAX_CHIPS) => Number.isInteger(n) && n >= min && n <= max;
 
 function init(ids) {
-  return {
+  const st = {
     phase: 'setup',
     croupier: 0,
     config: { ...DEFAULTS },
@@ -52,9 +54,11 @@ function init(ids) {
     result: null,
     log: [],
     base: { sb: DEFAULTS.sb, bb: DEFAULTS.bb }, // blindes réglées (avant doublements), pour recommencer
-    clock: null, // niveaux de blindes au temps : { levels, levelMs, level, levelAt, paused }
+    clock: null, // niveaux de blindes au temps : { levels: [{ sb, bb, min }], planned, level, levelAt, paused }
     players: ids.map((_, i) => ({ chips: i === 0 ? 0 : DEFAULTS.stack, bet: 0, total: 0, folded: false, allIn: false, inHand: false, acted: false, noRaise: false, sitOut: false, left: false, taps: 0, eggs: 0, eggBy: -1, eggStock: EGG_STOCK, shieldUntil: 0 })),
   };
+  setPlan(st);
+  return st;
 }
 
 // ---- utilitaires de table -------------------------------------------------------------
@@ -130,7 +134,7 @@ function blindPlan(stack, count, minutes, startBb) {
     let bb = nice(bb0 * Math.pow(ratio, k));
     const prev = levels[levels.length - 1];
     if (prev && bb <= prev.bb) bb = NICE.find((v) => v > prev.bb);
-    levels.push({ sb: bb / 2, bb });
+    levels.push({ sb: bb / 2, bb, min: levelMin });
   }
   return { levels, levelMin, planned: steps + 1 };
 }
@@ -145,15 +149,18 @@ function setPlan(st) {
   const chips = seats.reduce((t, i) => t + st.players[i].chips, 0);
   const count = running ? seats.filter((i) => st.players[i].chips > 0).length : seats.length;
   const plan = running ? blindPlan(chips / Math.max(1, count), count, cfg.duration, cfg.bb) : blindPlan(cfg.stack, count, cfg.duration);
-  st.clock = { levels: plan.levels, planned: plan.planned, levelMs: plan.levelMin * 60000, level: 0, levelAt: running ? now() : null, paused: null };
-  Object.assign(cfg, plan.levels[0]);
+  st.clock = { levels: plan.levels, planned: plan.planned, level: 0, levelAt: running ? now() : null, paused: null };
+  setBlinds(cfg, plan.levels[0]);
 }
+
+const setBlinds = (cfg, lv) => { cfg.sb = lv.sb; cfg.bb = lv.bb; };
+const levelMs = (c, k = c.level) => c.levels[k].min * 60000;
 
 // Temps restant du niveau en cours (ms), horloge arrêtée comprise.
 function levelLeft(c) {
-  if (c.levelAt === null) return c.levelMs;
+  if (c.levelAt === null) return levelMs(c);
   if (c.paused !== null) return c.paused;
-  return Math.max(0, c.levelAt + c.levelMs - now());
+  return Math.max(0, c.levelAt + levelMs(c) - now());
 }
 
 // Avance l'horloge (au début d'une main) et applique les blindes du niveau atteint.
@@ -162,7 +169,7 @@ function tickClock(st) {
   if (!c) return;
   if (c.levelAt === null) c.levelAt = now();
   if (c.paused === null) {
-    while (c.level < c.levels.length - 1 && now() - c.levelAt >= c.levelMs) { c.level++; c.levelAt += c.levelMs; }
+    while (c.level < c.levels.length - 1 && now() - c.levelAt >= levelMs(c)) { c.levelAt += levelMs(c); c.level++; }
   }
   applyLevel(st);
 }
@@ -170,7 +177,7 @@ function tickClock(st) {
 function applyLevel(st) {
   const lv = st.clock.levels[st.clock.level];
   if (st.config.bb === lv.bb && st.config.sb === lv.sb) return;
-  Object.assign(st.config, lv);
+  setBlinds(st.config, lv);
   say(st, `Niveau ${st.clock.level + 1} : blindes ${lv.sb}/${lv.bb}.`);
 }
 
@@ -337,7 +344,9 @@ function config(st, a) {
   const c = st.config;
   const sb = a.sb ?? c.sb, bb = a.bb ?? c.bb, every = a.blindEvery ?? c.blindEvery;
   const stack = a.stack ?? c.stack;
-  const duration = a.duration ?? c.duration;
+  // Blindes réglées à la main sans durée : mode libre (pas d'horloge).
+  const manual = a.duration === undefined && (a.sb !== undefined || a.bb !== undefined || a.blindEvery !== undefined);
+  const duration = manual ? 0 : a.duration ?? c.duration;
   if (!isInt(sb, 1, 1e6) || !isInt(bb, 1, 1e6) || bb < sb) return fail('bad-blinds');
   if (!isInt(every, 0, 100) || !isInt(duration, 0, 720)) return fail('bad-amount');
   if (!isInt(stack, 1, 1e7)) return fail('bad-amount');
@@ -355,7 +364,7 @@ function config(st, a) {
     // Blindes modifiées à la main en cours de partie : l'horloge est arrêtée.
     if (c.sb !== st.clock.levels[st.clock.level].sb || c.bb !== st.clock.levels[st.clock.level].bb) { st.clock = null; c.duration = 0; }
   }
-  if (st.clock) say(st, `Réglages : tapis ${stack}, partie de ${duration} min, niveaux de ${st.clock.levelMs / 60000} min, blindes de départ ${c.sb}/${c.bb}.`);
+  if (st.clock) say(st, `Réglages : tapis ${stack}, partie de ${duration} min, niveaux de ${st.clock.levels[0].min} min, blindes de départ ${c.sb}/${c.bb}.`);
   else say(st, `Réglages : tapis ${stack}, blindes ${c.sb}/${c.bb}${every ? `, doublées toutes les ${every} mains` : ''}.`);
   return ok();
 }
@@ -368,7 +377,7 @@ function level(st, a) {
   if (to < 0 || to >= c.levels.length) return fail('no-level');
   c.level = to;
   c.levelAt = c.levelAt === null ? null : now();
-  if (c.paused !== null) c.paused = c.levelMs;
+  if (c.paused !== null) c.paused = levelMs(c);
   if (idleOrSetup(st)) applyLevel(st);
   else say(st, `Niveau ${to + 1} (${c.levels[to].sb}/${c.levels[to].bb}) à la prochaine main.`);
   return ok();
@@ -378,7 +387,25 @@ function pause(st, a) {
   const c = st.clock;
   if (!c || c.levelAt === null) return fail('no-clock');
   if (a.on && c.paused === null) { c.paused = levelLeft(c); say(st, 'Horloge des blindes en pause.'); }
-  else if (!a.on && c.paused !== null) { c.levelAt = now() - (c.levelMs - c.paused); c.paused = null; say(st, 'Horloge des blindes relancée.'); }
+  else if (!a.on && c.paused !== null) { c.levelAt = now() - (levelMs(c) - c.paused); c.paused = null; say(st, 'Horloge des blindes relancée.'); }
+  return ok();
+}
+
+// Modifie un niveau de la structure (blindes et durée). Le niveau en cours s'applique tout de
+// suite entre deux mains, sinon à la main suivante ; changer sa durée garde le temps déjà écoulé.
+function editLevel(st, a) {
+  const c = st.clock;
+  if (!c) return fail('no-clock');
+  const k = a.level;
+  if (!Number.isInteger(k) || k < 0 || k >= c.levels.length) return fail('no-level');
+  const lv = c.levels[k];
+  const sb = a.sb ?? lv.sb, bb = a.bb ?? lv.bb, min = a.min ?? lv.min;
+  if (!isInt(sb, 1, 1e6) || !isInt(bb, 1, 1e6) || bb < sb) return fail('bad-blinds');
+  if (!isInt(min, 1, 240)) return fail('bad-amount');
+  if (k === c.level && c.paused !== null) c.paused = Math.max(0, c.paused + (min - lv.min) * 60000);
+  Object.assign(lv, { sb, bb, min });
+  say(st, `Niveau ${k + 1} modifié : ${sb}/${bb}, ${min} min.`);
+  if (k === c.level && idleOrSetup(st)) setBlinds(st.config, lv);
   return ok();
 }
 
@@ -442,6 +469,7 @@ function croupierAction(st, i, a) {
     case 'give': return give(st, a);
     case 'level': return level(st, a);
     case 'pause': return pause(st, a);
+    case 'editLevel': return editLevel(st, a);
     case 'restart': return restart(st);
     case 'end': st.phase = 'over'; st.turn = -1; return ok();
     default: return null;
@@ -560,7 +588,7 @@ function view(st, idx) {
     result: st.result,
     log: st.log,
     clock: st.clock && {
-      level: st.clock.level, levels: st.clock.levels, planned: st.clock.planned, levelMin: st.clock.levelMs / 60000,
+      level: st.clock.level, levels: st.clock.levels, planned: st.clock.planned,
       started: st.clock.levelAt !== null, paused: st.clock.paused !== null, left: levelLeft(st.clock),
     },
     players: st.players.map((p) => ({ chips: p.chips, bet: p.bet, total: p.total, folded: p.folded, allIn: p.allIn, inHand: p.inHand, sitOut: p.sitOut, left: p.left, taps: p.taps, eggs: p.eggs, eggBy: p.eggBy, eggStock: p.eggStock, shield: Math.max(0, p.shieldUntil - now()) })),

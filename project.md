@@ -518,3 +518,19 @@ Audit par captures d'écran à 390 px de large (taille d'un téléphone) de chaq
   clairs avec reflet et ombre ; jeton du dessus vu en perspective (anneau d'inserts en
   `repeating-conic-gradient`, filet clair, épaisseur) ; jetons du plateau et jetons en vol vus de dessus.
   Couleur d'insert par valeur (inserts bleus sur le jeton blanc de 1).
+
+## 2026-10-06 — Jetons de poker : un seul réglage façon tournoi, niveaux modifiables
+- **Besoin** : trop de réglages (blindes à la main, « ×2 toutes les N mains », durée à part). Comme une
+  structure de tournoi : on règle **le tapis de départ et la durée**, tout le reste (blindes et temps de
+  chaque niveau) est calculé — et chaque niveau (« tour ») doit pouvoir être retouché.
+- **Moteur** : chaque niveau porte sa durée (`levels: [{ sb, bb, min }]`, plus de `levelMs` global) ;
+  nouvelle action croupier `editLevel { level, sb?, bb?, min? }` (validée comme les blindes, 1 à 240 min).
+  Niveau en cours modifié : appliqué tout de suite entre deux mains, sinon à la main suivante ; changer
+  sa durée garde le temps écoulé (et ajuste le reste en pause). Une partie a désormais **1 h 30 par défaut**
+  (structure calculée dès `init`). Un `config` avec des blindes et sans durée repasse en mode libre (gardé
+  pour la compatibilité et les tests ; l'interface ne le propose plus).
+- **Menu du croupier** : bloc unique « ⏱ Partie » en tête : tapis de départ (+ « Recalculer »), durée en
+  boutons (30 min → 4 h), horloge en cours (⏮ ⏸ ⏭), puis la **structure** en tableau (niveau, heure de
+  début, durée, blindes ; prolongations en pointillé, niveaux passés grisés). Toucher une ligne l'ouvre en
+  édition (petite blinde, grosse blinde, minutes → Enregistrer). Les champs blindes et « ×2 toutes les
+  N mains » sont retirés.

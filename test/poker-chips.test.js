@@ -223,6 +223,7 @@ test('durée de partie : structure de blindes croissante, niveaux au temps, paus
   assert.equal(plan.levels[0].bb, 10);
   assert.ok(plan.levels.every((l, k) => l.sb * 2 === l.bb && (k === 0 || l.bb > plan.levels[k - 1].bb)));
   assert.ok(plan.levelMin >= 3 && plan.levelMin * plan.planned <= 140);
+  assert.ok(plan.levels.every((l) => l.min === plan.levelMin));
 
   let t = 1e6;
   g._internal.setNow(() => t);
@@ -230,12 +231,13 @@ test('durée de partie : structure de blindes croissante, niveaux au temps, paus
     const st = newGame(3, { stack: 1000, duration: 60 });
     const c = st.clock;
     assert.ok(c);
+    const ms = c.levels[0].min * 60000;
     assert.equal(st.config.bb, c.levels[0].bb);
     assert.equal(g.view(st, 0).clock.started, false);
     must(act(st, st.croupier, 'start'));
-    assert.equal(g.view(st, 0).clock.left, c.levelMs);
+    assert.equal(g.view(st, 0).clock.left, ms);
     // Le niveau ne change qu'au début d'une main.
-    t += c.levelMs + 1;
+    t += ms + 1;
     for (const who of [0, 1, 2]) if (st.phase === 'betting') must(act(st, st.turn, 'fold'));
     assert.equal(st.config.bb, c.levels[0].bb);
     must(act(st, st.croupier, 'start'));
@@ -245,7 +247,7 @@ test('durée de partie : structure de blindes croissante, niveaux au temps, paus
     // Pause : le temps restant est figé.
     must(act(st, st.croupier, 'pause', { on: true }));
     const left = g.view(st, 0).clock.left;
-    t += 10 * c.levelMs;
+    t += 10 * ms;
     assert.equal(g.view(st, 0).clock.left, left);
     must(act(st, st.croupier, 'pause', { on: false }));
     assert.equal(g.view(st, 0).clock.left, left);
@@ -254,6 +256,15 @@ test('durée de partie : structure de blindes croissante, niveaux au temps, paus
     assert.equal(c.level, 2);
     assert.equal(st.config.bb, c.levels[2].bb);
     assert.equal(act(st, 0, 'level', { delta: 1 }).error, 'not-croupier');
+    // Modifier un niveau : blindes et durée ; le niveau en cours s'applique tout de suite entre deux mains.
+    must(act(st, st.croupier, 'editLevel', { level: 2, sb: 25, bb: 50, min: 7 }));
+    assert.deepEqual(c.levels[2], { sb: 25, bb: 50, min: 7 });
+    assert.equal(st.config.bb, 50);
+    must(act(st, st.croupier, 'editLevel', { level: 5, min: 30 }));
+    assert.equal(c.levels[5].min, 30);
+    assert.equal(act(st, st.croupier, 'editLevel', { level: 2, sb: 60, bb: 50 }).error, 'bad-blinds');
+    assert.equal(act(st, st.croupier, 'editLevel', { level: 99, sb: 1, bb: 2 }).error, 'no-level');
+    assert.equal(act(st, 0, 'editLevel', { level: 2, min: 3 }).error, 'not-croupier');
     // Nouvelle durée en cours de partie : structure recalculée à partir des blindes actuelles.
     const bbNow = st.config.bb;
     must(act(st, st.croupier, 'config', { duration: 90 }));
@@ -312,4 +323,17 @@ test('pour rire : compteur de clics et œufs, sans effet sur les jetons', () => 
   while (st.phase === 'betting') must(act(st, st.turn, 'fold'));
   const winner = st.result.pots[0].winners[0];
   assert.equal(st.players[winner].eggStock, stock[winner] + 1);
+});
+
+test('par défaut : partie de 1 h 30 avec horloge ; blindes à la main = mode libre', () => {
+  const st = newGame(4);
+  assert.equal(st.config.duration, 90);
+  assert.ok(st.clock);
+  assert.equal(st.config.bb, st.clock.levels[0].bb);
+  must(act(st, st.croupier, 'config', { sb: 5, bb: 10 }));
+  assert.equal(st.clock, null);
+  assert.equal(st.config.duration, 0);
+  must(act(st, st.croupier, 'config', { stack: 2000, duration: 120 }));
+  assert.ok(st.clock);
+  assert.equal(st.config.bb, 20);
 });

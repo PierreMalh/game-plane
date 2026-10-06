@@ -42,11 +42,12 @@
   const STREET = { preflop: 'Pré-flop', flop: 'Flop', turn: 'Turn', river: 'River' };
 
   // État local conservé entre deux rafraîchissements du serveur (le cadre reconstruit tout).
-  const draft = { stack: '', sb: '', bb: '', every: '', amount: '' };
+  const draft = { stack: '', amount: '', lsb: '', lbb: '', lmin: '' };
   let draftSeen = false; // champs initialisés depuis la configuration du serveur
   let raiseTo = null, raiseKey = null, raiseOpen = false; // relance composée au plateau
   let winners = { hand: -1, picks: [], active: 0 }; // gagnants cochés par pot (par numéro de main)
   let menuOpen = false, target = -1; // menu du croupier et joueur choisi pour la recave
+  let editLv = -1; // niveau de la structure en cours de modification
   let logOpen = false;
   let focusKey = null; // champ en cours de saisie, refocalisé après un rafraîchissement
   let zoom = false, wake = null; // gros plan du croupier et verrou d'écran allumé
@@ -644,11 +645,11 @@
     sheet.append(head);
     if (!idle) sheet.append(el('p', 'ch-lock', 'Une main est en cours : recaves et réglages se font entre deux mains.'));
     if (!draftSeen) {
-      Object.assign(draft, { stack: s.config.stack, sb: s.config.sb, bb: s.config.bb, every: s.config.blindEvery });
+      draft.stack = s.config.stack;
       draftSeen = true;
     }
     const setup = s.phase === 'setup';
-    sheet.append(durationSection(s, send, setup, idle));
+    sheet.append(settingsSection(s, send, setup, idle));
 
     // Recave / correction de jetons.
     const seats = s.players.map((p, i) => i).filter((i) => !s.players[i].left && i !== s.croupier);
@@ -678,23 +679,6 @@
     }
     sheet.append(rebuy);
 
-    // Réglages de la partie.
-    if (s.clock) Object.assign(draft, { sb: s.config.sb, bb: s.config.bb }); // blindes fixées par l'horloge
-    const conf = el('section', 'ch-sec');
-    conf.append(el('h4', null, 'Partie'));
-    const grid = el('div', 'ch-grid');
-    grid.append(
-      number('sb', s.clock ? 'Petite blinde (horloge)' : 'Petite blinde', { min: 1, disabled: !idle || !!s.clock }),
-      number('bb', s.clock ? 'Grosse blinde (horloge)' : 'Grosse blinde', { min: 1, disabled: !idle || !!s.clock }),
-      number('stack', setup ? 'Tapis de départ' : 'Tapis de départ (fixé)', { min: 1, disabled: !setup }),
-      number('every', 'Blindes ×2 toutes les… mains (0 = jamais)', { min: 0, disabled: !idle || !!s.clock }),
-    );
-    conf.append(grid);
-    const apply = el('div', 'ch-row');
-    apply.append(button('Appliquer', () => send({ type: 'config', ...(setup ? { stack: Number(draft.stack) } : {}), sb: Number(draft.sb), bb: Number(draft.bb), blindEvery: Number(draft.every) }), 'ch-primary', !idle));
-    conf.append(apply);
-    sheet.append(conf);
-
     const end = el('section', 'ch-sec');
     end.append(el('h4', null, 'Recommencer ou terminer'));
     end.append(confirmButton('restart', '↺ Recommencer la partie', 'Toucher encore : tout le monde repart avec le tapis de départ', () => send({ type: 'restart' })));
@@ -715,27 +699,39 @@
     }, 'ch-danger' + (on ? ' armed' : ''));
   }
 
-  // Durée de la partie : choix d'une durée (structure de blindes calculée par le serveur), puis
-  // horloge en cours avec pause et passage au niveau suivant.
-  function durationSection(s, send, setup, idle) {
+  const hmm = (m) => `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`;
+
+  // Réglage unique de la partie, façon tournoi : tapis de départ et durée → structure de blindes
+  // calculée par le serveur (niveaux, blindes, temps), dont chaque niveau se modifie d'un toucher.
+  function settingsSection(s, send, setup, idle) {
     const sec = el('section', 'ch-sec ch-sec-time');
-    sec.append(el('h4', null, '⏱ Durée de la partie'));
+    sec.append(el('h4', null, '⏱ Partie'));
+    const duration = s.config.duration || 90;
+
+    const top = el('div', 'ch-row ch-custom');
+    top.append(number('stack', setup ? 'Tapis de départ' : 'Tapis de départ (fixé une fois la partie lancée)', { min: 1, disabled: !setup }));
+    if (setup) top.append(button('Recalculer', () => send({ type: 'config', stack: Number(draft.stack), duration }), 'sec'));
+    sec.append(top);
+
+    sec.append(el('div', 'ch-label', 'Durée de la partie'));
     const presets = el('div', 'ch-presets');
-    for (const m of [0, 30, 45, 60, 90, 120, 180, 240]) {
-      const on = s.config.duration === m;
-      presets.append(button(m ? durLabel(m) : 'Libre', () => send({ type: 'config', ...(setup ? { stack: Number(draft.stack) || s.config.stack } : {}), duration: m }), 'ch-preset' + (on ? ' on' : ''), !idle));
+    for (const m of [30, 45, 60, 90, 120, 150, 180, 240]) {
+      presets.append(button(durLabel(m), () => send({ type: 'config', ...(setup ? { stack: Number(draft.stack) || s.config.stack } : {}), duration: m }),
+        'ch-preset' + (s.clock && s.config.duration === m ? ' on' : ''), !idle));
     }
     sec.append(presets);
-    sec.append(el('p', 'ch-help', !s.clock
-      ? 'Choisis une durée : les blindes sont calculées pour finir à l’heure et montent toutes seules. Libre : blindes à la main.'
-      : setup
-        ? 'Départ à ~100 grosses blindes ; niveaux calculés d’après le tapis et le nombre de joueurs. L’horloge part à la 1re main.'
-        : 'Changer la durée maintenant recalcule les niveaux à partir des blindes actuelles ; l’horloge repart tout de suite.'));
     const c = s.clock;
-    if (!c) return sec;
-    sec.append(el('p', 'ch-plan', `${c.planned} niveaux de ${c.levelMin} min · ${durLabel(c.planned * c.levelMin)} (+ prolongations)`));
+    if (!c) {
+      sec.append(el('p', 'ch-help', 'Choisis une durée : les blindes et le temps de chaque niveau sont calculés pour finir à l’heure.'));
+      return sec;
+    }
+    sec.append(el('p', 'ch-help', setup
+      ? 'Départ à ~100 grosses blindes, arrivée quand il ne reste qu’une poignée de grosses blindes à chacun. Touche un niveau pour le modifier. L’horloge part à la 1re main.'
+      : 'Touche un niveau pour le modifier. Changer la durée recalcule les niveaux à partir des blindes actuelles.'));
+
+    // Horloge en cours et commandes.
     const now = el('div', 'ch-clockbox');
-    now.append(el('b', null, `${c.levels[c.level].sb}/${c.levels[c.level].bb}`), clockNote(s));
+    now.append(el('b', null, `${fmt(c.levels[c.level].sb)}/${fmt(c.levels[c.level].bb)}`), clockNote(s));
     sec.append(now);
     const row = el('div', 'ch-row');
     row.append(
@@ -745,13 +741,39 @@
     );
     row.firstChild.setAttribute('aria-label', 'Niveau précédent');
     sec.append(row);
-    const list = el('ol', 'ch-levels');
+
+    // Structure : un niveau par ligne (début, durée, blindes), modifiable.
+    const planned = c.levels.slice(0, c.planned).reduce((t, l) => t + l.min, 0);
+    sec.append(el('p', 'ch-plan', `${c.planned} niveaux · ${durLabel(planned)} (+ ${c.levels.length - c.planned} de prolongation)`));
+    const table = el('div', 'ch-struct');
+    const head = el('div', 'ch-struct-row ch-struct-head');
+    head.append(el('span', null, 'Niv.'), el('span', null, 'Début'), el('span', null, 'Durée'), el('span', null, 'Blindes'), el('span'));
+    table.append(head);
+    let start = 0;
     c.levels.forEach((l, k) => {
-      const li = el('li', k === c.level ? 'on' : k >= c.planned ? 'extra' : k < c.level ? 'done' : '');
-      li.append(el('small', null, `${durLabel(k * c.levelMin).replace(/^0 min$/, 'départ')}`), el('b', null, `${fmt(l.sb)}/${fmt(l.bb)}`));
-      list.append(li);
+      const state = k === c.level ? ' on' : k < c.level ? ' done' : k >= c.planned ? ' extra' : '';
+      if (k === editLv) {
+        const form = el('div', 'ch-struct-edit');
+        form.append(el('b', null, `Niveau ${k + 1}`));
+        const fields = el('div', 'ch-grid3');
+        fields.append(number('lsb', 'Petite blinde', { min: 1 }), number('lbb', 'Grosse blinde', { min: 1 }), number('lmin', 'Minutes', { min: 1 }));
+        form.append(fields);
+        const act = el('div', 'ch-row');
+        act.append(
+          button('Annuler', () => { editLv = -1; GPGames.refresh(); }, 'sec'),
+          button('Enregistrer', () => { editLv = -1; send({ type: 'editLevel', level: k, sb: Number(draft.lsb), bb: Number(draft.lbb), min: Number(draft.lmin) }); }, 'ch-primary'),
+        );
+        form.append(act);
+        table.append(form);
+      } else {
+        const r = button('', () => { editLv = k; Object.assign(draft, { lsb: l.sb, lbb: l.bb, lmin: l.min }); GPGames.refresh(); }, 'ch-struct-row' + state, k < c.level);
+        r.append(el('span', null, k >= c.planned ? `+${k - c.planned + 1}` : String(k + 1)), el('span', null, hmm(start)), el('span', null, `${l.min} min`), el('b', null, `${fmt(l.sb)}/${fmt(l.bb)}`), el('span', 'ch-edit', '✎'));
+        r.setAttribute('aria-label', `Modifier le niveau ${k + 1}`);
+        table.append(r);
+      }
+      start += l.min;
     });
-    sec.append(list);
+    sec.append(table);
     return sec;
   }
 
@@ -973,6 +995,7 @@
       lastLevel = lv;
     }
     if (!s.isCroupier) menuOpen = false;
+    if (!menuOpen || !s.clock || editLv >= s.clock.levels.length) editLv = -1;
     if (zoom && (!s.isCroupier || s.phase === 'over')) setZoom(false, false); // déjà en plein rendu
     if (!s.hints.actions.includes('raise')) raiseOpen = false;
     if (pop >= 0 && (table.spectator || s.phase === 'over' || !s.players[pop] || s.players[pop].left)) pop = -1;

@@ -214,14 +214,28 @@ section.ch-sec { background: #0b1220; margin: 0; padding: 12px; display: flex; f
 .ch-primary { background: var(--gold); color: #2a1a05; font-weight: 800; }
 .ch-custom { align-items: flex-end; }
 .ch-custom .ch-field { flex: 2 1 120px; }
-.ch-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.ch-grid .ch-field:last-child { grid-column: 1 / -1; }
 .ch-field { display: flex; flex-direction: column; gap: 4px; font-size: .8rem; color: var(--dim); }
 .ch-field input { width: 100%; padding: 10px; }
 .ch-danger { width: 100%; background: #7f1d1d; color: #fee2e2; }
 .ch-danger.armed { background: #dc2626; color: #fff; animation: ch-blink 0.8s steps(2) 5; }
 .ch-sec-time { box-shadow: inset 0 0 0 1px var(--gold-dk); }
 .ch-plan { margin: 0; font-weight: 700; color: var(--gold); }
+.ch-label { font-size: .8rem; color: var(--dim); margin-bottom: -4px; }
+/* Structure du tournoi : un niveau par ligne, touché pour le modifier */
+.ch-struct { display: flex; flex-direction: column; gap: 3px; max-height: 46dvh; overflow-y: auto; }
+.ch-struct-row { display: grid; grid-template-columns: 2.4em 3.4em 4.2em 1fr 1.6em; align-items: center; gap: 6px; text-align: left;
+                 padding: 7px 10px; background: #1e293b; color: var(--txt); font-weight: 400; font-size: .85rem; border-radius: 8px;
+                 font-variant-numeric: tabular-nums; }
+.ch-struct-row b { color: var(--gold); }
+.ch-struct-head { background: none; color: var(--dim); font-size: .7rem; text-transform: uppercase; letter-spacing: .06em; padding: 0 10px; }
+.ch-struct-row.on { background: var(--gold); color: #2a1a05; font-weight: 700; }
+.ch-struct-row.on b { color: #2a1a05; }
+.ch-struct-row.done { opacity: .4; }
+.ch-struct-row.extra { background: none; border: 1px dashed #475569; }
+.ch-edit { color: var(--dim); text-align: right; }
+.ch-struct-row.on .ch-edit { color: #2a1a05; }
+.ch-struct-edit { background: #1e293b; border: 1px solid var(--gold-dk); border-radius: 10px; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.ch-grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
 .ch-help { margin: 0; font-size: .8rem; color: var(--dim); }
 .ch-presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
 .ch-preset { padding: 10px 4px; background: #1e293b; color: var(--txt); font-size: .85rem; }
@@ -230,16 +244,7 @@ section.ch-sec { background: #0b1220; margin: 0; padding: 12px; display: flex; f
 .ch-clockbox > b { font-size: 1.6rem; color: var(--gold); }
 .ch-clockbox .ch-clock { font-size: .9rem; background: #1e293b; }
 .ch-narrow { flex: 0 0 auto !important; }
-.ch-levels { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 4px; counter-reset: lv; }
-.ch-levels li { counter-increment: lv; font-size: .75rem; background: #1e293b; border-radius: 6px; padding: 3px 7px; font-variant-numeric: tabular-nums;
                 display: flex; flex-direction: column; align-items: center; line-height: 1.2; }
-.ch-levels li small { font-size: .65rem; color: var(--dim); }
-.ch-levels li::before { content: 'Niv. ' counter(lv); font-size: .6rem; color: var(--dim); }
-.ch-levels li.on small { color: #2a1a05; }
-.ch-levels li.done { opacity: .45; }
-.ch-levels li.on { background: var(--gold); color: #2a1a05; font-weight: 800; }
-.ch-levels li.on::before { color: #2a1a05; }
-.ch-levels li.extra { border: 1px dashed #475569; background: none; }
 
 /* Petit menu d'un joueur touché */
 .ch-mini { max-width: 420px; gap: 10px; }

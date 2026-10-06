@@ -462,8 +462,7 @@ de l'appli) : l'écran de chacun montre le **pot**, ses **jetons** et les action
 c'est à lui de parler. Aucune carte n'est gérée par l'appli.
 - **Croupier** : un **téléphone à part qui ne joue pas** (il compte comme un siège de la table : 2 joueurs
   minimum + le croupier, 10 joueurs maximum + le croupier). L'hôte de la table l'est au départ ; avant la
-  première main, un autre peut le devenir (« Devenir croupier »). Il règle la **partie** (tapis de départ, petite et grosse blindes, option
-  « blindes ×2 toutes les N mains »), lance chaque main, **distribue les pots** à l'abattage,
+  première main, un autre peut le devenir (« Devenir croupier »). Il règle la **partie** (tapis de départ et durée, voir plus bas), lance chaque main, **distribue les pots** à l'abattage,
   corrige les jetons (recave, erreur) et peut terminer la partie. Il voit le pot et les mises de tous.
 - **Une main** : blindes automatiques (le bouton **D** tourne), puis pré-flop, flop, turn et river.
   Actions : se coucher, parole (check), suivre, relancer, tapis. Relance minimale = la dernière
@@ -478,8 +477,10 @@ c'est à lui de parler. Aucune carte n'est gérée par l'appli.
 - **La table** : les joueurs sont assis autour d'une table en long, toi toujours en bas. Le croupier a un
   grand bouton **« Main suivante »** au milieu, un menu **⚙** (durée, blindes, recave, recommencer) et un
   **⛶ Gros plan** qui met la table en plein écran (écran maintenu allumé) pour le téléphone posé au milieu.
-- **Durée de la partie** (menu ⚙) : choisis 30 min, 1 h, 2 h… ; l'appli calcule les niveaux de blindes
-  (départ à ~100 grosses blindes) pour que la partie finisse à peu près à l'heure. Un **chrono** au centre
+- **Réglage de la partie** (menu ⚙, un seul bloc comme pour un tournoi) : le **tapis de départ** et la
+  **durée** (30 min à 4 h, 1 h 30 par défaut). L'appli calcule la **structure** : niveaux, blindes et temps
+  de chaque niveau (départ à ~100 grosses blindes) pour que la partie finisse à peu près à l'heure.
+  **Touche un niveau pour le modifier** (petite blinde, grosse blinde, minutes). Un **chrono** au centre
   de la table montre le niveau, les blindes et le temps restant ; un **son** retentit quand les blindes
   montent (au début de la main suivante). Le croupier peut mettre en pause ou passer à la **blinde
   suivante**, et changer la durée en cours de partie.
