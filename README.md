@@ -216,6 +216,7 @@ conversation sont conservés ; on peut envoyer au plus 8 messages toutes les 5 s
 | [Belote](#belote) | 4 (2 équipes) | automatique |
 | [Belote contrée](#belote-contrée) | 4 (2 équipes) | automatique |
 | [Poker](#poker) | 2 à 8 | par l'hôte de la table |
+| [Jetons de poker](#jetons-de-poker) | 2 à 10 | par l'hôte de la table |
 
 > Aucun jeu n'a de chronomètre : prenez votre temps, ou pressez gentiment vos amis via le chat 😉.
 
@@ -453,6 +454,26 @@ dernier à avoir des jetons gagne. Pas d'argent réel, bien sûr.
 - **Quitter** en cours de tournoi : vous vous couchez et vos jetons sortent du jeu ; les autres continuent.
 
 ---
+
+### Jetons de poker
+
+Un **gestionnaire de jetons** pour jouer au poker avec de **vraies cartes** (ou le jeu de cartes
+de l'appli) : l'écran de chacun montre le **pot**, ses **jetons** et les actions possibles quand
+c'est à lui de parler. Aucune carte n'est gérée par l'appli.
+- **Croupier** : l'hôte de la table l'est au départ ; entre deux mains, n'importe qui peut le devenir
+  (« Devenir croupier »). Il règle la **partie** (tapis de départ, petite et grosse blindes, option
+  « blindes ×2 toutes les N mains »), lance chaque main, **distribue les pots** à l'abattage,
+  corrige les jetons (recave, erreur) et peut terminer la partie. Il joue aussi s'il le veut.
+- **Une main** : blindes automatiques (le bouton **D** tourne), puis pré-flop, flop, turn et river.
+  Actions : se coucher, parole (check), suivre, relancer, tapis. Relance minimale = la dernière
+  relance ; une mise que personne ne suit est rendue ; **pots annexes** automatiques.
+- **Composer sa mise** : touche les **jetons** (1, 5, 25, 100, 500, 1000) pour les ajouter, ou
+  utilise le curseur et les raccourcis (Min, ½ pot, Pot, Tapis).
+- **Abattage** : le croupier coche le ou les gagnants de chaque pot (plusieurs = partage ; le jeton
+  impair va au premier à gauche du bouton), puis « Distribuer les pots ».
+- Un joueur « à sec » peut être **rechargé** par le croupier. « Sauter les prochaines mains » met
+  un joueur de côté sans quitter. On ne peut pas rejoindre une table déjà lancée.
+- Quitter la table = se coucher ; ses jetons sortent du jeu.
 
 ## 6. Problèmes fréquents
 

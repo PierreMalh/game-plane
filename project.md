@@ -391,3 +391,38 @@ Audit par captures d'écran à 390 px de large (taille d'un téléphone) de chaq
   trop lourd, chemins piégés), relecture du dossier au démarrage. Vérifié dans Chromium à 390 px :
   envoi de l'as de pique et du dos, affichage chez l'autre joueur en partie de 8 américain, retour au
   jeu d'origine diffusé, aucune erreur JS.
+
+## 2026-10-06 — Jetons de poker (gestionnaire de jetons, 2 à 10 joueurs)
+- **Besoin** : jouer au poker avec de vraies cartes mais sans jetons physiques. Chacun voit le pot, ses
+  jetons et ses actions ; un « croupier » règle la partie et les blindes. Distinct du jeu `poker`
+  (Texas Hold'em avec cartes, tournoi) : ici **le serveur ne connaît aucune carte**.
+- **Moteur** `server/games/poker-chips.js`, enregistré comme un jeu à effectif variable
+  (`autoStart: false`, 2–10) : lobby, tables, chat, spectateurs et reconnexion sont réutilisés tels quels.
+  Phases : `setup → betting → showdown | between → … → over`.
+- **Croupier** : l'hôte (index 0) au départ ; n'importe quel joueur peut le réclamer en `setup`/`between`
+  (jamais en pleine main : l'abattage a besoin d'un croupier stable). S'il quitte, le suivant le devient.
+  Seul le croupier peut `config`, `start`, `award`, `give`, `end`. Il peut aussi jouer.
+- **Enchères** : No-Limit, relance = « montant total de la mise du tour », relance minimale = dernière
+  relance (≥ grosse blinde), tapis incomplet qui ne rouvre pas les enchères (`noRaise`), tête-à-tête avec
+  le bouton petite blinde. Tout est en entiers. Même logique que `poker.js`, réécrite pour ne dépendre
+  d'aucun paquet. La **mise non suivie est rendue** à la fin du tour (plutôt qu'au calcul des pots), ce
+  qui garde les pots justes avec des tapis inégaux.
+- **Pots** : un niveau par mise totale distincte des joueurs encore en lice (`pots()`), pots voisins de
+  mêmes éligibles fusionnés ; les mises des couchés restent dans le pot sans le disputer. À l'abattage le
+  croupier envoie `award { winners: [[…], …] }`, une liste par pot, validée contre les éligibles ; partage
+  égal, jeton impair au premier gagnant à gauche du bouton. Tous couchés sauf un : pot attribué seul.
+- **Blindes** : réglées par le croupier avant chaque main (`config`), avec option de doublement
+  automatique toutes les N mains (0 = manuel). Le tapis de départ n'est modifiable qu'en `setup`.
+- **Recave** : `give { player, amount }` (positif ou négatif) entre deux mains ; `sitout` pour mettre
+  un joueur de côté. Départ en cours de main = couché, jetons retirés (`onLeave`).
+- **Information** : tout est public (pas de cartes), seul `hints` dépend du joueur ; un spectateur voit
+  la vue sans action.
+- **Client** : `GPChips` (dans `public/games/poker-chips.js`) dessine des piles de jetons en CSS
+  (valeurs 1/5/25/100/500/1000, 6 jetons max par colonne puis « ×n ») pour le pot, les tapis et la mise ;
+  un plateau de jetons à toucher compose la mise (somme bornée entre relance minimale et tapis), avec
+  curseur et raccourcis Min/½ pot/Pot/Tapis. Les saisies du croupier survivent aux rafraîchissements.
+- **Tests** : 11 (`test/poker-chips.test.js`) dont des parties aléatoires vérifiant la conservation des
+  jetons à chaque action. Vérifié dans Chromium à 390 px à 3 joueurs (réglage, main, relance au plateau),
+  aucune erreur JS.
+- **Limites** : pas d'ajout de joueur une fois la partie lancée (comportement des tables) ; pas de
+  « straddle » ni d'ante.

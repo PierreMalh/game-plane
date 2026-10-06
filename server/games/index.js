@@ -13,6 +13,6 @@
 // Pour ajouter un jeu : un fichier ici + son rendu dans public/games/.
 
 const games = new Map();
-for (const g of [require('./connect4'), require('./chess'), require('./monopoly'), require('./impostor'), require('./cards/president'), require('./cards/eights'), require('./cards/liar'), require('./cards/belote'), require('./cards/coinche'), require('./cards/poker')]) games.set(g.id, g);
+for (const g of [require('./connect4'), require('./chess'), require('./monopoly'), require('./impostor'), require('./cards/president'), require('./cards/eights'), require('./cards/liar'), require('./cards/belote'), require('./cards/coinche'), require('./cards/poker'), require('./poker-chips')]) games.set(g.id, g);
 
 module.exports = { games };
