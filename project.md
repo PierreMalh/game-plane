@@ -612,3 +612,13 @@ Audit par captures d'écran à 390 px de large (taille d'un téléphone) de chaq
   début, durée, blindes ; prolongations en pointillé, niveaux passés grisés). Toucher une ligne l'ouvre en
   édition (petite blinde, grosse blinde, minutes → Enregistrer). Les champs blindes et « ×2 toutes les
   N mains » sont retirés.
+
+## 2026-10-07 — Correctif : Jetons de poker bloqué sur le setup après la fusion
+- **Symptôme** : après « Démarrer », les clients plantaient (`drawCenter is not defined`) et l'écran restait
+  sur le setup. Le merge de `claude/poker-table-ui` (PR #21) avait mêlé dans `public/games/poker-chips.js`
+  des morceaux de la refonte de `main` (2ᵉ `drawTable`, `drawBlinds`, ancienne `raisePanel`) au code de la
+  branche ; la 2ᵉ `drawTable` écrasait la bonne (déclarations hissées).
+- **Correction** : `public/games/poker-chips.js` repris tel quel depuis la branche (qui prime). CSS, serveur
+  et tests étaient déjà identiques à la branche.
+- **Vérifié** dans Chromium (3 joueurs) : démarrage de la partie, setup du croupier, première main avec
+  blindes, aucune erreur JS ; `npm test` : 273 réussis.
