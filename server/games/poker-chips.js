@@ -13,12 +13,27 @@
 //   Un tapis incomplet ne rouvre pas les enchères pour ceux qui ont déjà parlé.
 //   Pots annexes calculés sur la mise totale de chacun ; mise non suivie rendue.
 //   Tête-à-tête : le bouton est petite blinde et parle en premier avant le flop.
+//   Durée de partie : le croupier choisit une durée (en minutes) ; `blindPlan` en déduit une
+//   structure de blindes par niveaux de temps (départ à ~100 grosses blindes, arrivée vers le
+//   20e des jetons en jeu, progression géométrique arrondie à des valeurs « rondes »). Le
+//   niveau change au début d'une main ; le croupier peut passer au niveau suivant, mettre en pause
+//   et modifier un niveau (blindes, durée). Partie de 1 h 30 par défaut ; régler des blindes à la
+//   main (sans durée) repasse en mode libre.
+//   Pour rire : compteur de clics sur les jetons (`tap`), œufs lancés sur un joueur (`egg`) qu'il
+//   doit nettoyer (`clean`). Chacun commence avec 10 œufs, en gagne un par main remportée ; après
+//   un nettoyage on est protégé 15 s. Aucun effet sur les jetons.
+//   Le croupier peut recommencer la partie (`restart`) : jetons, mains et horloge remis à zéro.
 // Phases : setup → betting → showdown | between → betting … → over.
 
 const MAX_CHIPS = 1e9;
 const LOG_MAX = 20;
 const STREETS = ['preflop', 'flop', 'turn', 'river'];
-const DEFAULTS = { stack: 1000, sb: 10, bb: 20, blindEvery: 0 };
+const DEFAULTS = { stack: 1000, sb: 10, bb: 20, blindEvery: 0, duration: 90 };
+const MAX_EGGS = 12; // taches en attente sur un écran
+const EGG_STOCK = 10; // œufs de départ de chacun
+const SHIELD_MS = 15000; // protection après un nettoyage
+const MAX_TAPS = 50; // clics envoyés en un message (le client les regroupe)
+let now = () => Date.now();
 
 const ok = () => ({ ok: true });
 const fail = (error) => ({ ok: false, error });
@@ -26,7 +41,7 @@ const say = (st, text) => { st.log.push(text); if (st.log.length > LOG_MAX) st.l
 const isInt = (n, min, max = MAX_CHIPS) => Number.isInteger(n) && n >= min && n <= max;
 
 function init(ids) {
-  return {
+  const st = {
     phase: 'setup',
     croupier: 0,
     config: { ...DEFAULTS },
@@ -38,8 +53,12 @@ function init(ids) {
     minRaise: DEFAULTS.bb,
     result: null,
     log: [],
-    players: ids.map((_, i) => ({ chips: i === 0 ? 0 : DEFAULTS.stack, bet: 0, total: 0, folded: false, allIn: false, inHand: false, acted: false, noRaise: false, sitOut: false, left: false })),
+    base: { sb: DEFAULTS.sb, bb: DEFAULTS.bb }, // blindes réglées (avant doublements), pour recommencer
+    clock: null, // niveaux de blindes au temps : { levels: [{ sb, bb, min }], planned, level, levelAt, paused }
+    players: ids.map((_, i) => ({ chips: i === 0 ? 0 : DEFAULTS.stack, bet: 0, total: 0, folded: false, allIn: false, inHand: false, acted: false, noRaise: false, sitOut: false, left: false, taps: 0, eggs: 0, eggBy: -1, eggStock: EGG_STOCK, shieldUntil: 0 })),
   };
+  setPlan(st);
+  return st;
 }
 
 // ---- utilitaires de table -------------------------------------------------------------
@@ -88,6 +107,80 @@ function pots(st) {
   return out.filter((p) => p.amount > 0);
 }
 
+// ---- durée de partie : structure de blindes --------------------------------------------
+
+// Grosses blindes « rondes » (toutes paires, pour une petite blinde = moitié entière).
+const NICE = (() => {
+  const out = [2, 4, 6, 8, 10, 12, 16, 20, 24, 30, 40, 50, 60, 80];
+  for (let k = 100; k <= 1e7; k *= 10) for (const m of [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8]) out.push(m * k);
+  return out;
+})();
+const nice = (x) => NICE.reduce((best, v) => (Math.abs(Math.log(v / x)) < Math.abs(Math.log(best / x)) ? v : best), NICE[0]);
+
+// Structure de blindes pour `count` joueurs à `stack` jetons et une partie de `minutes` minutes.
+// Départ à ~100 grosses blindes ; la dernière grosse blinde prévue vaut ~1/20 des jetons en jeu
+// (deux joueurs restants à ~10 grosses blindes chacun : la partie se termine vite). Progression
+// géométrique de raison ~1,5 ; la durée d'un niveau en découle. Au-delà, 6 niveaux de
+// prolongation ×1,5 pour finir la partie si elle déborde.
+// `startBb` : grosse blinde de départ imposée (durée choisie en cours de partie).
+function blindPlan(stack, count, minutes, startBb) {
+  const bb0 = startBb ? nice(startBb) : nice(Math.max(2, stack / 100));
+  const end = Math.max(bb0 * 2, (stack * Math.max(2, count)) / 20);
+  const steps = Math.max(1, Math.round(Math.log(end / bb0) / Math.log(1.5)));
+  const levelMin = Math.min(60, Math.max(3, Math.round(minutes / (steps + 1))));
+  const ratio = Math.pow(end / bb0, 1 / steps);
+  const levels = [];
+  for (let k = 0; k <= steps + 6; k++) {
+    let bb = nice(bb0 * Math.pow(ratio, k));
+    const prev = levels[levels.length - 1];
+    if (prev && bb <= prev.bb) bb = NICE.find((v) => v > prev.bb);
+    levels.push({ sb: bb / 2, bb, min: levelMin });
+  }
+  return { levels, levelMin, planned: steps + 1 };
+}
+
+// Calcule l'horloge. Avant la partie : d'après le tapis de départ. En cours de partie : d'après
+// les jetons en jeu, à partir des blindes actuelles, et l'horloge part tout de suite.
+function setPlan(st) {
+  const cfg = st.config;
+  if (!cfg.duration) { st.clock = null; return; }
+  const seats = present(st).filter((i) => i !== st.croupier);
+  const running = st.phase !== 'setup';
+  const chips = seats.reduce((t, i) => t + st.players[i].chips, 0);
+  const count = running ? seats.filter((i) => st.players[i].chips > 0).length : seats.length;
+  const plan = running ? blindPlan(chips / Math.max(1, count), count, cfg.duration, cfg.bb) : blindPlan(cfg.stack, count, cfg.duration);
+  st.clock = { levels: plan.levels, planned: plan.planned, level: 0, levelAt: running ? now() : null, paused: null };
+  setBlinds(cfg, plan.levels[0]);
+}
+
+const setBlinds = (cfg, lv) => { cfg.sb = lv.sb; cfg.bb = lv.bb; };
+const levelMs = (c, k = c.level) => c.levels[k].min * 60000;
+
+// Temps restant du niveau en cours (ms), horloge arrêtée comprise.
+function levelLeft(c) {
+  if (c.levelAt === null) return levelMs(c);
+  if (c.paused !== null) return c.paused;
+  return Math.max(0, c.levelAt + levelMs(c) - now());
+}
+
+// Avance l'horloge (au début d'une main) et applique les blindes du niveau atteint.
+function tickClock(st) {
+  const c = st.clock;
+  if (!c) return;
+  if (c.levelAt === null) c.levelAt = now();
+  if (c.paused === null) {
+    while (c.level < c.levels.length - 1 && now() - c.levelAt >= levelMs(c)) { c.levelAt += levelMs(c); c.level++; }
+  }
+  applyLevel(st);
+}
+
+function applyLevel(st) {
+  const lv = st.clock.levels[st.clock.level];
+  if (st.config.bb === lv.bb && st.config.sb === lv.sb) return;
+  setBlinds(st.config, lv);
+  say(st, `Niveau ${st.clock.level + 1} : blindes ${lv.sb}/${lv.bb}.`);
+}
+
 // ---- déroulement d'une main -----------------------------------------------------------
 
 function startHand(st) {
@@ -95,7 +188,8 @@ function startHand(st) {
   const players = st.players.map((p, i) => i).filter((i) => i !== st.croupier && !st.players[i].left && !st.players[i].sitOut && st.players[i].chips > 0);
   if (players.length < 2) return fail('not-enough');
   st.handNo++;
-  if (cfg.blindEvery > 0 && st.handNo > 1 && (st.handNo - 1) % cfg.blindEvery === 0) {
+  if (st.clock) tickClock(st);
+  else if (cfg.blindEvery > 0 && st.handNo > 1 && (st.handNo - 1) % cfg.blindEvery === 0) {
     cfg.sb *= 2; cfg.bb *= 2;
     say(st, `Les blindes passent à ${cfg.sb}/${cfg.bb}.`);
   }
@@ -171,6 +265,7 @@ function settle(st) {
 function winByFold(st, i) {
   const amount = pot(st);
   st.players[i].chips += amount;
+  st.players[i].eggStock++;
   st.result = { fold: true, pots: [{ amount, winners: [i] }] };
   say(st, `@${i} remporte ${amount} : tous les autres se sont couchés.`);
   endHand(st);
@@ -249,13 +344,68 @@ function config(st, a) {
   const c = st.config;
   const sb = a.sb ?? c.sb, bb = a.bb ?? c.bb, every = a.blindEvery ?? c.blindEvery;
   const stack = a.stack ?? c.stack;
+  // Blindes réglées à la main sans durée : mode libre (pas d'horloge).
+  const manual = a.duration === undefined && (a.sb !== undefined || a.bb !== undefined || a.blindEvery !== undefined);
+  const duration = manual ? 0 : a.duration ?? c.duration;
   if (!isInt(sb, 1, 1e6) || !isInt(bb, 1, 1e6) || bb < sb) return fail('bad-blinds');
-  if (!isInt(every, 0, 100)) return fail('bad-amount');
+  if (!isInt(every, 0, 100) || !isInt(duration, 0, 720)) return fail('bad-amount');
   if (!isInt(stack, 1, 1e7)) return fail('bad-amount');
-  if (st.phase !== 'setup' && a.stack !== undefined && a.stack !== c.stack) return fail('hand-running');
-  Object.assign(c, { sb, bb, blindEvery: every, stack });
-  if (st.phase === 'setup') st.players.forEach((p, i) => { p.chips = i === st.croupier ? 0 : stack; });
-  say(st, `Réglages : tapis ${stack}, blindes ${sb}/${bb}${every ? `, doublées toutes les ${every} mains` : ''}.`);
+  const setup = st.phase === 'setup';
+  if (!setup && a.stack !== undefined && a.stack !== c.stack) return fail('hand-running');
+  const newDuration = duration !== c.duration;
+  Object.assign(c, { sb, bb, blindEvery: every, stack, duration });
+  if (setup) st.base = { sb, bb };
+  if (setup) {
+    st.players.forEach((p, i) => { p.chips = i === st.croupier ? 0 : stack; });
+    setPlan(st); // la durée impose les blindes de départ
+  } else if (newDuration) {
+    setPlan(st); // nouvelle durée en cours de partie : nouvelle structure à partir des blindes actuelles
+  } else if (st.clock) {
+    // Blindes modifiées à la main en cours de partie : l'horloge est arrêtée.
+    if (c.sb !== st.clock.levels[st.clock.level].sb || c.bb !== st.clock.levels[st.clock.level].bb) { st.clock = null; c.duration = 0; }
+  }
+  if (st.clock) say(st, `Réglages : tapis ${stack}, partie de ${duration} min, niveaux de ${st.clock.levels[0].min} min, blindes de départ ${c.sb}/${c.bb}.`);
+  else say(st, `Réglages : tapis ${stack}, blindes ${c.sb}/${c.bb}${every ? `, doublées toutes les ${every} mains` : ''}.`);
+  return ok();
+}
+
+// Passe au niveau suivant (ou précédent) sans attendre l'horloge.
+function level(st, a) {
+  const c = st.clock;
+  if (!c) return fail('no-clock');
+  const to = c.level + (a.delta === -1 ? -1 : 1);
+  if (to < 0 || to >= c.levels.length) return fail('no-level');
+  c.level = to;
+  c.levelAt = c.levelAt === null ? null : now();
+  if (c.paused !== null) c.paused = levelMs(c);
+  if (idleOrSetup(st)) applyLevel(st);
+  else say(st, `Niveau ${to + 1} (${c.levels[to].sb}/${c.levels[to].bb}) à la prochaine main.`);
+  return ok();
+}
+
+function pause(st, a) {
+  const c = st.clock;
+  if (!c || c.levelAt === null) return fail('no-clock');
+  if (a.on && c.paused === null) { c.paused = levelLeft(c); say(st, 'Horloge des blindes en pause.'); }
+  else if (!a.on && c.paused !== null) { c.levelAt = now() - (levelMs(c) - c.paused); c.paused = null; say(st, 'Horloge des blindes relancée.'); }
+  return ok();
+}
+
+// Modifie un niveau de la structure (blindes et durée). Le niveau en cours s'applique tout de
+// suite entre deux mains, sinon à la main suivante ; changer sa durée garde le temps déjà écoulé.
+function editLevel(st, a) {
+  const c = st.clock;
+  if (!c) return fail('no-clock');
+  const k = a.level;
+  if (!Number.isInteger(k) || k < 0 || k >= c.levels.length) return fail('no-level');
+  const lv = c.levels[k];
+  const sb = a.sb ?? lv.sb, bb = a.bb ?? lv.bb, min = a.min ?? lv.min;
+  if (!isInt(sb, 1, 1e6) || !isInt(bb, 1, 1e6) || bb < sb) return fail('bad-blinds');
+  if (!isInt(min, 1, 240)) return fail('bad-amount');
+  if (k === c.level && c.paused !== null) c.paused = Math.max(0, c.paused + (min - lv.min) * 60000);
+  Object.assign(lv, { sb, bb, min });
+  say(st, `Niveau ${k + 1} modifié : ${sb}/${bb}, ${min} min.`);
+  if (k === c.level && idleOrSetup(st)) setBlinds(st.config, lv);
   return ok();
 }
 
@@ -279,6 +429,8 @@ function award(st, a) {
     say(st, `${order.map((i) => `@${i}`).join(' et ')} ${order.length > 1 ? 'partagent' : 'remporte'} ${p.amount}.`);
   });
   st.result = result;
+  // Un œuf de plus par gagnant de la main (une seule fois même avec plusieurs pots).
+  for (const i of new Set(result.pots.flatMap((p) => p.winners))) st.players[i].eggStock++;
   endHand(st);
   return ok();
 }
@@ -294,12 +446,31 @@ function give(st, a) {
   return ok();
 }
 
+// Recommence la partie : tapis de départ pour tous, mains, bouton et horloge remis à zéro. Les
+// réglages, les absences et les compteurs de clics sont conservés ; les œufs repartent à 10.
+function restart(st) {
+  st.players.forEach((p, i) => Object.assign(p, {
+    chips: i === st.croupier || p.left ? 0 : st.config.stack, bet: 0, total: 0, folded: false, allIn: false,
+    inHand: false, acted: false, noRaise: false, eggs: 0, eggStock: EGG_STOCK, shieldUntil: 0,
+  }));
+  Object.assign(st, { phase: 'setup', handNo: 0, dealer: -1, street: null, turn: -1, currentBet: 0, result: null, log: [] });
+  Object.assign(st.config, st.base);
+  st.minRaise = st.config.bb;
+  setPlan(st);
+  say(st, 'Partie recommencée par le croupier.');
+  return ok();
+}
+
 function croupierAction(st, i, a) {
   switch (a.type) {
     case 'config': return config(st, a);
     case 'start': return idleOrSetup(st) ? startHand(st) : fail('hand-running');
     case 'award': return award(st, a);
     case 'give': return give(st, a);
+    case 'level': return level(st, a);
+    case 'pause': return pause(st, a);
+    case 'editLevel': return editLevel(st, a);
+    case 'restart': return restart(st);
     case 'end': st.phase = 'over'; st.turn = -1; return ok();
     default: return null;
   }
@@ -319,6 +490,27 @@ function action(st, idx, a) {
     st.players[idx].sitOut = false;
     st.croupier = idx;
     say(st, `@${idx} devient croupier.`);
+    return ok();
+  }
+  // Pour rire (sans effet sur les jetons), ouverts à tous y compris le croupier.
+  if (a.type === 'tap') {
+    if (!isInt(a.n ?? 1, 1, MAX_TAPS)) return fail('bad-amount');
+    st.players[idx].taps += a.n ?? 1;
+    return ok();
+  }
+  if (a.type === 'egg') {
+    const p = st.players[a.player];
+    if (!p || p.left || a.player === idx) return fail('bad-target');
+    if (st.players[idx].eggStock <= 0) return fail('no-eggs');
+    if (p.shieldUntil > now()) return fail('protected');
+    st.players[idx].eggStock--;
+    p.eggs = Math.min(p.eggs + 1, MAX_EGGS);
+    p.eggBy = idx;
+    return ok();
+  }
+  if (a.type === 'clean') {
+    const p = st.players[idx];
+    if (p.eggs) { p.eggs = 0; p.shieldUntil = now() + SHIELD_MS; }
     return ok();
   }
   if (a.type === 'sitout') {
@@ -395,7 +587,11 @@ function view(st, idx) {
     pots: st.phase === 'showdown' ? pots(st) : [],
     result: st.result,
     log: st.log,
-    players: st.players.map((p) => ({ chips: p.chips, bet: p.bet, total: p.total, folded: p.folded, allIn: p.allIn, inHand: p.inHand, sitOut: p.sitOut, left: p.left })),
+    clock: st.clock && {
+      level: st.clock.level, levels: st.clock.levels, planned: st.clock.planned,
+      started: st.clock.levelAt !== null, paused: st.clock.paused !== null, left: levelLeft(st.clock),
+    },
+    players: st.players.map((p) => ({ chips: p.chips, bet: p.bet, total: p.total, folded: p.folded, allIn: p.allIn, inHand: p.inHand, sitOut: p.sitOut, left: p.left, taps: p.taps, eggs: p.eggs, eggBy: p.eggBy, eggStock: p.eggStock, shield: Math.max(0, p.shieldUntil - now()) })),
     me: idx >= 0 ? idx : null,
     hints: hints(st, idx),
   };
@@ -411,5 +607,5 @@ module.exports = {
   maxPlayers: 11, // croupier + 10 joueurs
   autoStart: false,
   init, action, view, isOver, nextFirst, onLeave,
-  _internal: { pots, DEFAULTS },
+  _internal: { pots, DEFAULTS, blindPlan, setNow: (f) => { now = f; } },
 };

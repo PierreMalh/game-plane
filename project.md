@@ -429,81 +429,108 @@ Audit par captures d'écran à 390 px de large (taille d'un téléphone) de chaq
 - **Limites** : pas d'ajout de joueur une fois la partie lancée (comportement des tables) ; pas de
   « straddle » ni d'ante.
 
-## 2026-10-06 — Refonte visuelle et table de poker dessinée
-- **Thème « cabine de nuit »** (`public/index.html`) : fond bleu cabine `#171b36`, panneaux `#222850`,
-  creux `--well`, accent ambre `#ffb547` (le voyant « attachez vos ceintures ») à la place du bleu ciel.
-  Les couleurs codées en dur des CSS de jeux (`#0b1220`, `#334155`, `#04263a`) passent par des
-  variables (`--well`, `--sec`, `--on-acc`) : un thème se change à un seul endroit.
-- **Typographie** : polices système seulement (rien à télécharger hors ligne) ; titres en
-  `ui-rounded` (SF Rounded sur iPhone, repli `system-ui` ailleurs) pour un ton de jeu sans police externe.
-- **Salon** : la liste des jeux devient des lignes séparées par un filet (façon tableau des départs)
-  avec un bouton « Créer » en contour, au lieu d'une pile de cartes identiques ; les parties ouvertes
-  ont une bande ambre. Focus clavier visible, mouvement réduit respecté.
-- **Table de poker** (`public/poker-table.js` + `.css`, `GPPokerTable.render`) partagée par *Poker* et
-  *Jetons de poker* : tapis vert ovale avec rebord en bois et ligne des mises, joueurs **assis autour**
-  (soi-même en bas, le joueur suivant à sa gauche comme à une vraie table), mises posées devant chaque
-  siège, bouton du donneur accroché au siège, cartes communes et pot au centre. Les cartes des autres
-  sont en éventail au-dessus de leur siège (dos pendant la main, faces à l'abattage avec la
-  combinaison) ; les siennes en grand devant soi (plus de bloc « Tes cartes » à part).
-  Le croupier des *Jetons de poker* ne s'assoit pas : il est nommé au centre.
-- **Placement** : sièges sur une ellipse en `calc()` (`--px`/`--py` gardent les sièges des bords
-  dans l'écran), tailles en unités de conteneur (`cqw`). Les mises des sièges latéraux passent sous
-  le siège pour ne pas recouvrir les cartes communes. Vérifié dans Chromium à 360 et 390 px, de 4 à
-  10 sièges, aucune erreur JS. Aucun changement serveur.
+## 2026-10-06 — Jetons de poker : table en long et refonte de l'interface
+- **Besoin** : le croupier voyait une liste de joueurs et des formulaires ; on veut l'ambiance d'une vraie
+  table, un bouton « Main suivante » évident et des réglages rangés à part. Seul le client change
+  (`public/games/poker-chips.js` + `.css`) : moteur, messages et tests serveur intacts.
+- **Table** : un stade vertical (`border-radius: 999px` sur une boîte de rapport 100 × H) au feutre vert
+  avec rebord bois et liseré doré. Les sièges sont posés à **intervalles réguliers le long du rebord**
+  (côtés droits et virages paramétrés par longueur d'arc, `track()`/`place()`), dans le sens du jeu en
+  partant du bas : **celui qui regarde est toujours en bas**, le croupier (🎩) a sa place autour de la
+  table. Mises devant chaque siège (piles miniatures sur une piste intérieure), bouton « D », pot et rue
+  au centre. Même vue pour le croupier, les joueurs et les spectateurs (table plus haute côté croupier).
+- **Croupier** : entre deux mains, **grand jeton doré « Main suivante »** au milieu du tapis (résultat de
+  la main précédente au-dessus). Bouton **⚙ Réglages** ouvrant une feuille du bas : **recave** (choix du
+  joueur, `+tapis de départ` en un geste, autre montant à donner/retirer), absent/remis en jeu, blindes,
+  tapis de départ (en `setup` seulement), doublement des blindes, fin de partie. Toucher un siège ouvre
+  directement ce menu sur ce joueur. À l'abattage, on **touche les sièges gagnants** (onglets par pot
+  s'il y a des pots annexes) puis « Distribuer ».
+- **Joueur** : barre du bas (collante quand c'est à lui) avec ses jetons, l'état de la main et des
+  boutons larges couleur poker (couché rouge, suivre/parole vert, relancer or) ; le plateau de jetons
+  s'ouvre à la demande (aperçu de la pile, curseur, Min/½ pot/Pot/Tapis). Historique replié sous la
+  table (dernière ligne visible).
+- **Léger** : aucune image, police ni bibliothèque ; jetons et table en CSS pur, animations coupées si
+  `prefers-reduced-motion`. Skill `frontend-design` utilisé pour la direction visuelle.
+- **Vérification** : 290 tests verts ; rendu à blanc du client (mini-DOM) sur une partie réelle à
+  4 joueurs + croupier (setup, recave via le menu, relance au plateau, tapis, abattage, distribution,
+  départ, fin) sans erreur. Pas de navigateur dans l'environnement : rendu visuel à valider sur téléphone.
 
-## 2026-10-06 — Jetons de poker : console du joueur et table du croupier
-- **Jetons dessinés** : vus de profil dans les piles (tranche colorée à liserés, légèrement
-  empilées) et de dessus sur le plateau de mise (bord à créneaux en `repeating-conic-gradient`,
-  anneau intérieur, valeur au centre). Le jeton blanc a des liserés bleus (`--s`) pour rester lisible.
-- **Console du joueur** : tapis en grand (ambre) avec ses piles ; à son tour, plateau des 6 jetons
-  sur une ligne, aperçu de la mise, curseur, raccourcis en 4 colonnes, puis une **barre d'actions**
-  (se coucher / parole ou suivre / relancer) en bas, à largeur égale, sous le pouce. Le bouton de
-  relance quitte le panneau pour rejoindre cette barre (`raisePanel` renvoie `{ panel, go }`).
-- **Table du croupier** : « Commencer la partie » / « Main suivante » en premier ; réglages des
-  blindes (grille 2 colonnes) et recave dans des volets repliables dont l'état survit aux
-  rafraîchissements ; « Terminer la partie » relégué en lien rouge. À l'abattage, les gagnants se
-  cochent par des boutons bascule avec la couleur du joueur (`aria-pressed`).
-- **Correctif** : la liste de recave s'affichait vide quand le joueur mémorisé (index 0 par défaut)
-  était le croupier ; on retombe désormais sur le premier joueur de la liste.
-- **Table** : sans cartes, elle est moins haute (`short`), en ovale couché jusqu'à 6 sièges ; le pot
-  « 0 » n'est plus affiché hors des enchères, le journal vide n'apparaît plus.
-- Vérifié dans Chromium à 360 et 390 px (réglage, tour de mise, abattage du croupier, entre deux
-  mains, 10 sièges), aucune erreur JS.
-- **Croupier au-dessus de la table** (demande après essai) : la table du croupier est coupée en deux.
-  Au-dessus du tapis, ce qui fait avancer la main (« Commencer la partie » / « Main suivante », choix
-  des gagnants et « Distribuer les pots » à l'abattage), pour l'avoir sous les yeux sans défiler ;
-  sous le tapis, les réglages des blindes, la recave et « Terminer la partie » (masqués pendant les
-  enchères).
-- **Vue du croupier en plein écran** (remplace le découpage précédent) : le téléphone du croupier,
-  qui ne joue pas, devient la table. Calque `position: fixed` (z-index 26 : au-dessus de l'en-tête et
-  des boutons du cadre, sous le chat à 30) ; le tapis remplit toute la place libre (ovale allongé en
-  portrait, couché en paysage), les sièges restant placés en pourcentages. En haut, l'état de la
-  main et un bouton **« Gérer »** ; en bas, un bandeau qui fait avancer la main (résultat du coup
-  précédent + « Commencer » / « Main suivante », ou choix des gagnants à l'abattage) ; en paysage
-  bas (≤ 520 px de haut), le bandeau passe à droite de la table.
-- **Volet « Gérer »** (feuille qui monte du bas, voile derrière, état gardé au rafraîchissement) :
-  blindes et recave (entre deux mains seulement), journal, chat de la table et « Quitter » (les
-  boutons du cadre sont masqués par la table), « Terminer la partie ». La vue de fin de partie
-  (classement) reste la vue normale.
-- **Jouer avec ses jetons** : toucher sa pile (console « Tes jetons ») fait sauter 3 à 5 jetons de la
-  couleur de la colonne touchée (toute la pile si on touche à côté). Petite physique maison dans une
-  seule boucle `requestAnimationFrame` : gravité, rebonds amortis sur les bords et le bas de l'écran,
-  rotation, et retournement de pièce simulé par `scaleY(|cos φ|)` ; disparition en fondu après 2,6 s,
-  60 jetons au plus à l'écran. Calque `position: fixed` sur `<body>` (survit aux rafraîchissements de
-  la partie), `pointer-events: none` (les boutons restent utilisables), sous le chat. Purement local,
-  rien n'est envoyé au serveur ; désactivé si le téléphone demande moins d'animations ; petite
-  vibration au toucher. Une ligne d'aide l'indique quand ce n'est pas son tour.
+## 2026-10-06 — Jetons de poker : durée de partie, gros plan, explosion de jetons et œufs
+- **Durée de partie** (`config { duration }`, en minutes, réglable en `setup` seulement) : `blindPlan`
+  calcule une structure de blindes au temps. Départ à ~100 grosses blindes (`stack/100`), arrivée vers
+  1/20 des jetons en jeu (deux derniers joueurs à ~10 grosses blindes : la partie se conclut), progression
+  géométrique de raison ~1,5 ; nombre de niveaux = log(arrivée/départ)/log 1,5 + 1, durée d'un niveau =
+  durée / niveaux (3 à 60 min). Grosses blindes arrondies à des valeurs « rondes » paires (petite blinde =
+  moitié entière), strictement croissantes ; 6 niveaux de prolongation au-delà. Ex. 1 000 jetons,
+  6 joueurs, 2 h : 9 niveaux de 13 min, 10 → 150.
+  - **Horloge** démarrée à la 1re main ; le niveau ne change **qu'au début d'une main** (jamais pendant).
+    Croupier : `level { delta: ±1 }` (passer au niveau suivant tout de suite), `pause { on }`. Blindes
+    changées à la main en cours de partie : l'horloge s'arrête (retour au mode libre).
+  - Le temps restant est envoyé en ms dans la vue (`clock.left`) : chaque téléphone en déduit une
+    échéance locale (pas de dépendance aux horloges des téléphones) et un seul `setInterval` d'1 s met
+    à jour les comptes à rebours affichés. Moteur testable via `_internal.setNow`.
+- **Gros plan (croupier)** : la table seule en plein écran (Fullscreen API si possible, sinon
+  superposition fixe) avec écran maintenu allumé (Wake Lock). Les tailles des sièges, du pot et du bouton
+  central suivent la largeur de la table (unités `cqw`, conteneur CSS) : grande table sur tablette.
+- **Explosion de jetons** : toucher une pile (ses jetons, le pot) fait sauter **seulement la colonne de
+  la couleur touchée** : ses jetons (autant que dans la colonne, 24 au plus) partent de leur place,
+  tournent, **retombent avec la gravité** (petite simulation `requestAnimationFrame`, 2 600 px/s²),
+  rebondissent une fois en bas de l'écran puis sortent ; la colonne se reforme ensuite. Coupée si
+  `prefers-reduced-motion`. Chaque toucher incrémente le **compteur de clics** du joueur (`tap { n }`),
+  affiché en badge 👆 à côté de chaque siège. Clics regroupés et envoyés 1,1 s après le premier (après
+  la retombée) pour ne pas reconstruire la page de tout le monde à chaque toucher.
+- **Œufs** : toucher un autre joueur (ou le croupier) ouvre son petit menu → « Lancer un œuf »
+  (`egg { player }`, 12 au plus en attente). L'œuf vole jusqu'au siège ; la victime voit des taches
+  (CSS pur, positions reproductibles d'un rafraîchissement à l'autre), vibre, et doit appuyer sur
+  « Nettoyer » (`clean`). Seules les nouvelles taches sont animées. Le croupier y retrouve aussi
+  « Recave, absence… ». Aucun effet sur les jetons.
+- **Jetons plus gros** partout (piles des mises, du pot et du joueur).
+- **Tests** : +2 (structure de blindes, niveaux au temps, pause, niveau suivant ; clics et œufs sans
+  effet sur les jetons), 292 au total ; rendu à blanc (mini-DOM) du gros plan, de la durée, des clics, de
+  l'œuf et du nettoyage.
 
-## 2026-10-06 — Déploiement en ligne sur Railway
-- **Besoin** : pouvoir jouer aussi avec internet (amis à distance, essais), sans changer l'usage
-  hors ligne via le hotspot.
-- **Choix** : nouveau projet Railway `game-plane`, un service relié au dépôt GitHub (branche `main`,
-  redéploiement à chaque push) et un domaine Railway généré
-  (https://game-plane-production.up.railway.app). Aucun fichier de config ni changement de code :
-  le serveur lisait déjà `PORT` et écoutait sur `0.0.0.0`, zéro dépendance à installer ; le
-  WebSocket passe par le proxy HTTPS de Railway (`wss://…/ws`).
-- **Limites assumées** : pas de volume, donc les images du jeu de cartes personnalisé et les parties
-  en cours disparaissent à chaque redéploiement ; pas d'authentification, donc toute personne qui a
-  le lien peut entrer dans le salon et modifier le jeu de cartes (comme sur le hotspot).
-- **Vérifié** : page servie (200), fichiers statiques et ouverture du WebSocket en production, sans
-  créer de joueur de test.
+## 2026-10-06 — Jetons de poker : chrono sur la table, recommencer, stock d'œufs, nouveaux jetons
+- **Chrono des blindes sur la table** (tous les écrans, au centre) : niveau, blindes en cours, compte à
+  rebours, blindes suivantes. Côté croupier : ⏸/▶ et **« Blinde suivante ⏭ »** directement sur la table.
+  Au passage d'un niveau (automatique au début d'une main ou manuel) : **son** (3 notes, Web Audio, aucun
+  fichier, débloqué au premier toucher), vibration et bandeau « les blindes montent ! » ~4 s. Fin du
+  temps d'un niveau vue par le croupier : petit signal sonore.
+- **Durée réglable aussi en cours de partie** (entre deux mains) : `blindPlan` repart des blindes
+  actuelles et des jetons en jeu (moyenne des tapis, joueurs encore servis) ; l'horloge repart tout de
+  suite. La section « ⏱ Durée de la partie » est en tête du menu, avec la liste des niveaux et l'heure de
+  début de chacun. Constat : sans relancer le serveur après la mise à jour, l'ancien moteur ignorait la
+  durée — d'où « je ne vois pas les modifications ».
+- **Recommencer la partie** (`restart`, croupier, à tout moment) : tapis de départ pour tous, mains,
+  bouton, journal et horloge remis à zéro, blindes réglées d'origine (`st.base`, avant doublements) ;
+  réglages, absences et compteurs de clics conservés, œufs remis à 10. **Double toucher** : le premier
+  arme le bouton 4 s (« Toucher encore… »), le second exécute ; « Terminer la partie » suit le même
+  principe (fin du `confirm()` natif).
+- **Œufs** : 10 chacun au départ (`eggStock`, croupier compris), +1 par main gagnée (une fois même avec
+  plusieurs pots), refus `no-eggs` à 0. Après « Nettoyer », **protégé 15 s** (`shieldUntil`, refus
+  `protected`) : 🛡 sur le siège jusqu'à l'échéance, bouton d'œuf grisé. Stock affiché (🥚 ×n) dans ma
+  place et dans la barre du croupier.
+- **Compteur de clics plus réactif** : toujours affiché (même à 0) à côté de chaque siège, y compris
+  sur la table du croupier ; mon compteur monte **immédiatement** au toucher (clics « en vol » ajoutés
+  localement puis rapprochés de la valeur du serveur), effet « +1 » quand un compteur augmente. Envoi :
+  1er clic tout de suite, puis paquets toutes les 400 ms. Une colonne encore en vol reste cachée si la
+  page est redessinée entre-temps.
+- **Nouveaux jetons** (CSS pur, taille pilotée par `--w`) : vue de côté à liserés couleur / inserts
+  clairs avec reflet et ombre ; jeton du dessus vu en perspective (anneau d'inserts en
+  `repeating-conic-gradient`, filet clair, épaisseur) ; jetons du plateau et jetons en vol vus de dessus.
+  Couleur d'insert par valeur (inserts bleus sur le jeton blanc de 1).
+
+## 2026-10-06 — Jetons de poker : un seul réglage façon tournoi, niveaux modifiables
+- **Besoin** : trop de réglages (blindes à la main, « ×2 toutes les N mains », durée à part). Comme une
+  structure de tournoi : on règle **le tapis de départ et la durée**, tout le reste (blindes et temps de
+  chaque niveau) est calculé — et chaque niveau (« tour ») doit pouvoir être retouché.
+- **Moteur** : chaque niveau porte sa durée (`levels: [{ sb, bb, min }]`, plus de `levelMs` global) ;
+  nouvelle action croupier `editLevel { level, sb?, bb?, min? }` (validée comme les blindes, 1 à 240 min).
+  Niveau en cours modifié : appliqué tout de suite entre deux mains, sinon à la main suivante ; changer
+  sa durée garde le temps écoulé (et ajuste le reste en pause). Une partie a désormais **1 h 30 par défaut**
+  (structure calculée dès `init`). Un `config` avec des blindes et sans durée repasse en mode libre (gardé
+  pour la compatibilité et les tests ; l'interface ne le propose plus).
+- **Menu du croupier** : bloc unique « ⏱ Partie » en tête : tapis de départ (+ « Recalculer »), durée en
+  boutons (30 min → 4 h), horloge en cours (⏮ ⏸ ⏭), puis la **structure** en tableau (niveau, heure de
+  début, durée, blindes ; prolongations en pointillé, niveaux passés grisés). Toucher une ligne l'ouvre en
+  édition (petite blinde, grosse blinde, minutes → Enregistrer). Les champs blindes et « ×2 toutes les
+  N mains » sont retirés.
