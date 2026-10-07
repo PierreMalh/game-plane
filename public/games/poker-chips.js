@@ -886,45 +886,8 @@
     return box;
   }
 
-  // Sous la table : blindes et leur prochain doublement.
-  function drawBlinds(s) {
-    let text = `Blindes ${s.config.sb}/${s.config.bb}`;
-    if (s.config.blindEvery && s.handNo) {
-      const left = s.config.blindEvery - ((s.handNo - 1) % s.config.blindEvery) - 1;
-      text += left > 0 ? ` (doublées dans ${left} main${left > 1 ? 's' : ''})` : ' (doublées à la prochaine main)';
-    }
-    const line = el('div', 'hint pk-center', text);
-    line.style.margin = '0';
-    return line;
-  }
-
-  // Table dessinée : les joueurs autour (le croupier ne s'assoit pas), leur mise en jetons devant eux.
-  function drawTable(table, s, full) {
-    const seats = [];
-    s.players.forEach((p, i) => {
-      if (i === s.croupier) return;
-      const out = p.left || p.sitOut || (!p.inHand && p.chips === 0);
-      let badge = null, badgeCls = null;
-      if (p.left) badge = 'parti';
-      else if (p.sitOut) badge = 'absent';
-      else if (p.chips === 0 && !p.inHand) badge = 'à sec';
-      else if (p.inHand && p.folded) badge = 'couché';
-      else if (p.allIn) { badge = 'tapis'; badgeCls = 'allin'; }
-      let bet = null;
-      if (p.bet > 0) { bet = document.createDocumentFragment(); bet.append(stack(p.bet, true), document.createTextNode(String(p.bet))); }
-      seats.push({
-        idx: i, name: nm(table, i), color: color(i), me: i === table.me,
-        amount: p.left ? null : `${p.chips} 🪙`, badge, badgeCls,
-        turn: i === s.turn && s.phase === 'betting', out: out || (p.inHand && p.folded),
-        dealer: i === s.dealer && !!s.street, bet, cards: null,
-      });
-    });
-    return GPPokerTable.render({ seats, center: drawCenter(table, s), base: table.me, short: !full });
-  }
-
   // Plateau de jetons : chaque toucher ajoute la valeur du jeton à la mise (dans les limites).
-  // Renvoie le panneau et le bouton de relance, placé dans la barre d'actions.
-  function raisePanel(s) {
+  function raisePanel(s, box, send) {
     const h = s.hints;
     const key = `${s.handNo}/${s.street}/${s.currentBet}`;
     if (raiseKey !== key || raiseTo === null) { raiseKey = key; raiseTo = h.minRaise; }
@@ -962,7 +925,7 @@
     const mine = s.players[s.me];
     for (const d of DENOMS) {
       if (d.v > mine.chips) continue;
-      const b = paint(el('button', 'ch-tap', String(d.v)), d);
+      const b = el('button', 'ch-tap', String(d.v));
       b.type = 'button';
       b.style.setProperty('--c', d.c);
       b.style.setProperty('--s', d.s);
@@ -1011,15 +974,6 @@
 
   // ---------------------------------------------------------------- vue
 
-  function statusOf(table) {
-    const s = table.state;
-    if (s.phase === 'over') return 'Partie terminée';
-    if (s.phase === 'setup') return s.isCroupier ? 'Règle la partie, puis commence' : `${nm(table, s.croupier)} règle la partie`;
-    if (s.phase === 'between') return s.isCroupier ? 'Prêt pour la main suivante' : 'Entre deux mains';
-    if (s.phase === 'showdown') return s.isCroupier ? 'Désigne les gagnants' : 'Abattage';
-    return s.turn === table.me ? 'À toi de parler' : `Au tour de ${nm(table, s.turn)}`;
-  }
-
   function build(container, ctx) {
     const { table, send } = ctx;
     const s = table.state;
@@ -1064,7 +1018,14 @@
     errors: ERRORS,
     leaveWarning: 'Quitter la table ? Tu te couches et tes jetons sortent du jeu.',
     isMyTurn: (table) => table.state.hints.actions.length > 0 || (table.state.isCroupier && table.state.phase === 'showdown'),
-    status: statusOf,
+    status(table) {
+      const s = table.state;
+      if (s.phase === 'over') return 'Partie terminée';
+      if (s.phase === 'setup') return s.isCroupier ? 'Règle la partie, puis commence' : `${nm(table, s.croupier)} règle la partie`;
+      if (s.phase === 'between') return s.isCroupier ? 'Prêt pour la main suivante' : 'Entre deux mains';
+      if (s.phase === 'showdown') return s.isCroupier ? 'Désigne les gagnants' : 'Abattage';
+      return s.turn === table.me ? 'À toi de parler' : `Au tour de ${nm(table, s.turn)}`;
+    },
     render: build,
   });
 })();
