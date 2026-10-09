@@ -272,11 +272,30 @@ function start({ port = 8080, host = '0.0.0.0', ...opts } = {}) {
 }
 
 // Adresses IPv4 locales à communiquer aux joueurs (hors loopback).
-function localAddresses() {
-  return Object.values(os.networkInterfaces())
-    .flat()
-    .filter((i) => i && i.family === 'IPv4' && !i.internal)
-    .map((i) => i.address);
+// `os.networkInterfaces()` lève une exception sous Termux (Android 11+ : « Unknown system error 13 »,
+// accès netlink refusé) : on se replie alors sur `ip`/`ifconfig`, puis sur une liste vide.
+function localAddresses(getInterfaces = os.networkInterfaces) {
+  try {
+    return Object.values(getInterfaces())
+      .flat()
+      .filter((i) => i && i.family === 'IPv4' && !i.internal)
+      .map((i) => i.address);
+  } catch {
+    return addressesFromCommands();
+  }
+}
+
+function addressesFromCommands() {
+  const { execFileSync } = require('child_process');
+  for (const [cmd, args] of [['ip', ['-4', '-o', 'addr']], ['ifconfig', []]]) {
+    try {
+      const out = execFileSync(cmd, args, { encoding: 'utf8', timeout: 2000, stdio: ['ignore', 'pipe', 'ignore'] });
+      const ips = [...out.matchAll(/inet (?:addr:)?(\d+\.\d+\.\d+\.\d+)/g)]
+        .map((m) => m[1]).filter((ip) => !ip.startsWith('127.'));
+      if (ips.length) return ips;
+    } catch { /* commande absente ou refusée : on essaie la suivante */ }
+  }
+  return [];
 }
 
 module.exports = { start, createApp, localAddresses };
@@ -286,7 +305,10 @@ if (require.main === module) {
   start({ port }).then(() => {
     console.log(`game-plane prêt sur le port ${port}`);
     const ips = localAddresses();
-    if (ips.length === 0) console.log('Aucune adresse réseau détectée : activez le hotspot Wi-Fi.');
+    if (ips.length === 0) {
+      console.log('Aucune adresse réseau détectée : activez le hotspot Wi-Fi.');
+      console.log('Le serveur tourne quand même : essayez http://192.168.43.1:' + port + ' (adresse habituelle du hotspot Android).');
+    }
     for (const ip of ips) console.log(`  → http://${ip}:${port}`);
   }).catch((err) => {
     console.error(`Impossible de démarrer : ${err.message}`);

@@ -506,7 +506,10 @@ c'est à lui de parler. Aucune carte n'est gérée par l'appli.
 `PORT=9000 npm start`, puis donnez l'adresse avec `:9000`.
 
 **« Aucune adresse réseau détectée ».** Le point d'accès n'est pas activé. Activez le hotspot,
-puis relancez `npm start`.
+puis relancez `npm start`. Si le hotspot est bien activé mais que le message reste affiché
+(certains Android refusent à Termux la lecture des interfaces réseau), le serveur tourne quand même :
+utilisez `http://192.168.43.1:8080` (adresse habituelle du hotspot Android) ou, dans Termux,
+`ip -4 addr` pour lire l'adresse de `wlan0` / `ap0` / `swlan0`.
 
 **« J'ai verrouillé mon téléphone / changé d'application / le navigateur s'est rechargé ».**
 Revenez sur la page : elle **se reconnecte toute seule** (statut « Reconnexion… » puis
