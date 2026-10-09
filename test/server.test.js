@@ -235,3 +235,13 @@ test('puissance 4 par WebSocket : partie, reconnexion en cours de partie, chat d
   assert.equal((await c.next((m) => m.type === 'chat')).text, 'visible'); // l'intrus n'a rien émis
   for (const x of [a, b2, c]) x.ws.close();
 });
+
+test('localAddresses ne plante pas si os.networkInterfaces() échoue (Termux)', () => {
+  const { localAddresses } = require('../server/server');
+  const ips = localAddresses(() => { throw new Error('uv_interface_addresses returned Unknown system error 13'); });
+  assert.ok(Array.isArray(ips));
+  assert.deepEqual(
+    localAddresses(() => ({ lo: [{ family: 'IPv4', internal: true, address: '127.0.0.1' }], wlan0: [{ family: 'IPv4', internal: false, address: '192.168.43.1' }] })),
+    ['192.168.43.1'],
+  );
+});
