@@ -622,3 +622,13 @@ Audit par captures d'écran à 390 px de large (taille d'un téléphone) de chaq
   et tests étaient déjà identiques à la branche.
 - **Vérifié** dans Chromium (3 joueurs) : démarrage de la partie, setup du croupier, première main avec
   blindes, aucune erreur JS ; `npm test` : 273 réussis.
+
+## 2026-10-09 — Correctif : le serveur quittait au démarrage sans données mobiles (Termux)
+- **Symptôme** : hôte sur téléphone, sans 5G (hotspot seul / mode avion) : « Impossible de démarrer » alors que
+  le port était ouvert. Le client, lui, n'utilise aucune ressource externe.
+- **Cause probable** : sous Termux (Android 11+), `os.networkInterfaces()` lève `uv_interface_addresses returned
+  Unknown system error 13` (netlink refusé). L'appel étant dans le `.then` du démarrage, le `.catch` affichait
+  « Impossible de démarrer » et faisait `process.exit(1)`.
+- **Correction** : `localAddresses()` est protégée par try/catch et se replie sur `ip -4 -o addr` puis `ifconfig`,
+  sinon liste vide ; dans ce cas le serveur reste lancé et suggère `192.168.43.1` (adresse habituelle du hotspot).
+  Test avec fournisseur d'interfaces injecté.
