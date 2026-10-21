@@ -7,5 +7,5 @@
     "start": "node server/server.js",
     "test": "node --test test/*.test.js"
   },
-  "engines": { "node": ">=18" }
+  "engines": { "node": ">=22.23.4" }
 }

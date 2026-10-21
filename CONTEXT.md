@@ -26,7 +26,7 @@ jeux de cartes : **Président** (3–6), **8 américain** (2–6), **Menteur** (
 - `public/chat.js` (`GPChat`) : volet réutilisable, aucun travail côté jeu.
 
 ## Stack
-- Node ≥ 18, **zéro dépendance npm** (rien à `npm install` hors ligne). Seule
+- Node ≥ 22.23.4 (correctifs de sécurité du 2026-10-21), **zéro dépendance npm** (rien à `npm install` hors ligne). Seule
   bibliothèque tierce : `chess.js`, copiée dans `server/vendor/` (voir son README).
 - `server/server.js` : HTTP statique + WebSocket, serveur autoritaire.
 - `server/ws.js` : WebSocket RFC 6455 écrit à la main.
