@@ -632,3 +632,19 @@ Audit par captures d'écran à 390 px de large (taille d'un téléphone) de chaq
 - **Correction** : `localAddresses()` est protégée par try/catch et se replie sur `ip -4 -o addr` puis `ifconfig`,
   sinon liste vide ; dans ce cas le serveur reste lancé et suggère `192.168.43.1` (adresse habituelle du hotspot).
   Test avec fournisseur d'interfaces injecté.
+
+## 2026-10-21 — Sécurité : versions minimales de Node (avis du 21 octobre 2026)
+- **Contexte** : Node.js a publié des correctifs pour 10 CVE (4 hautes, 3 moyennes, 3 basses) dans 22.23.4,
+  24.22.1 et 26.12.1 : décodeur Brotli (CVE-2026-111497), contournements de vérification d'hôte TLS
+  (CVE-2026-105483, -106069, -106072), `dns.resolve` tronqué sur NUL (CVE-2026-105482), socket keep-alive HTTP
+  (CVE-2026-105481), caches de `randomUUID()`/`randomInt()` figés dans les snapshots (CVE-2026-106074), plus
+  des failles du Permission Model / ZipFile (basses). Les lignes 18.x et 20.x (fin de vie) sont à considérer
+  comme vulnérables.
+- **Exposition du projet** : aucune dépendance npm à mettre à jour (rien à `npm audit`). Le code n'utilise ni
+  Brotli/zlib, ni `dns`, ni TLS (HTTP clair + WebSocket maison), ni snapshot/SEA, ni Permission Model ;
+  `randomUUID()` est appelé à l'exécution normale, donc non concerné. Le risque est donc surtout dans le
+  **runtime** (Node de Termux sur le téléphone hôte, Node choisi par Railpack sur Railway).
+- **Changement** : `engines.node` passe de `>=18` à `>=22.23.4` (Railpack s'en sert pour choisir la version à
+  Railway ; documentation README/CONTEXT alignée, avec un rappel `pkg upgrade` pour Termux). Rien d'autre dans
+  le code. La plage `>=` accepte aussi des 24.x < 24.22.1, volontairement : une plage `||` risquerait de
+  mettre le build Railpack en échec.

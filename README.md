@@ -52,6 +52,8 @@ relie tout le monde. Aucun forfait ni internet n'est nécessaire dans l'avion.
    pkg update
    pkg install nodejs git
    ```
+   Gardez Node à jour (`pkg upgrade`) : des failles de sécurité sont corrigées régulièrement
+   (version minimale : 22.23.4, vérifiable avec `node -v`).
 3. Récupérer le jeu :
    ```
    git clone https://github.com/pierremalh/game-plane
@@ -553,7 +555,7 @@ branchez l'hôte si possible.
 
 ## 8. Pour les curieux (développement)
 
-- **Stack** : Node ≥ 18 **sans aucune dépendance npm** (rien à installer hors ligne),
+- **Stack** : Node ≥ 22.23.4 **sans aucune dépendance npm** (rien à installer hors ligne),
   WebSocket écrit à la main, client en JavaScript pur. Seule bibliothèque tierce :
   `chess.js`, copiée dans `server/vendor/`.
 - **Lancer sur un ordinateur** : `npm start`, puis ouvrir l'adresse affichée (ou `http://localhost:8080`).
